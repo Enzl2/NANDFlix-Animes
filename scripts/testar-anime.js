@@ -2,7 +2,7 @@
 // precisar de internet: a AniList é simulada com uma resposta de exemplo.
 const assert = require('assert');
 const test = require('node:test');
-const { novoFilme, mesmoFilme, progressoSerie, statusSerie, comDia, vistoSerie, ehSerie, passoSerie, totalTemporadas } = require('../lib/filmes');
+const { novoFilme, mesmoFilme, progressoSerie, statusSerie, comDia, vistoSerie, ehSerie, passoSerie, totalTemporadas, definirSerie } = require('../lib/filmes');
 const anilist = require('../lib/anilist');
 
 const serie = (dados = {}) => novoFilme({ tipo: 'serie', anime: true, anilistId: 1, episodios: 12, episodiosVistos: 0, status: 'planejo', ...dados });
@@ -167,12 +167,13 @@ test('capaSerie: acha a animação pelo título e usa a capa do idioma original'
       { id: 114410, name: 'Chainsaw Man', original_name: 'チェンソーマン', original_language: 'ja', genre_ids: [16, 10759], poster_path: '/padrao.jpg' },
     ] },
     '/tv/114410/images': { posters: [{ file_path: '/en.jpg', iso_639_1: 'en', vote_average: 9 }, { file_path: '/ja.jpg', iso_639_1: 'ja', vote_average: 5 }], logos: [{ file_path: '/logo-en.png', iso_639_1: 'en', vote_average: 1 }] },
+    '/tv/114410/external_ids': { imdb_id: 'tt13616990' },
     '/tv/114410': { overview: 'Denji é um caçador.' },
     '/tv/114410/imagesX': { posters: [{ file_path: '/en.jpg', iso_639_1: 'en', vote_average: 9 }, { file_path: '/ja.jpg', iso_639_1: 'ja', vote_average: 5 }], logos: [{ file_path: '/logo-en.png', iso_639_1: 'en', vote_average: 1 }] },
   });
   const c = await tmdb.capaSerie('chave', { titulo: 'Chainsaw Man', tituloRomaji: 'Chainsaw Man' });
-  assert.deepStrictEqual(c, { tmdbTvId: 114410, temporada: 0, poster: 'https://image.tmdb.org/t/p/w780/ja.jpg', logo: 'https://image.tmdb.org/t/p/w500/logo-en.png', sinopse: 'Denji é um caçador.' });
-  assert.deepStrictEqual(pedidos.sort(), ['/search/tv?Chainsaw Man', '/tv/114410', '/tv/114410/images'].sort());
+  assert.deepStrictEqual(c, { tmdbTvId: 114410, temporada: 0, poster: 'https://image.tmdb.org/t/p/w780/ja.jpg', logo: 'https://image.tmdb.org/t/p/w500/logo-en.png', sinopse: 'Denji é um caçador.', imdbID: 'tt13616990' });
+  assert.deepStrictEqual(pedidos.sort(), ['/search/tv?Chainsaw Man', '/tv/114410', '/tv/114410/external_ids', '/tv/114410/images'].sort());
 });
 test('capaSerie: com temporada no título, busca a série sem ela e usa a capa da temporada', async () => {
   const pedidos = simularTmdb({
@@ -285,4 +286,73 @@ test('anilist.camposSerie: um item só, com a soma e o progresso preservado', as
   assert.deepStrictEqual(de_novo.temporadas.map((t) => t.vistos), [12, 4, 0]);
   assert.strictEqual(de_novo.episodiosVistos, 16);
   assert.ok(!('titulo' in de_novo));
+});
+
+// ---- Digitar episódios, em alta e importar a lista ----
+
+test('definir: o total digitado é distribuído pelas temporadas lançadas, em ordem', () => {
+  const f = comTemporadas([T({ episodios: 12 }), T({ anilistId: 2, episodios: 13 }), T({ anilistId: 3, episodios: 0, exibicao: 'não lançado' })]);
+  const m = definirSerie(f, 20);
+  assert.deepStrictEqual(m.temporadas.map((t) => t.vistos), [12, 8, 0]);
+  assert.strictEqual(m.status, 'assistindo');
+  assert.strictEqual(definirSerie(f, 999).status, 'completo');
+  assert.deepStrictEqual(definirSerie(f, 999).temporadas.map((t) => t.vistos), [12, 13, 0]);
+  assert.deepStrictEqual(definirSerie({ ...f, ...m }, 0).temporadas.map((t) => t.vistos), [0, 0, 0]);
+});
+test('definir: numa temporada, vale só para ela; sem temporadas, é o número direto', () => {
+  const f = comTemporadas([T({ episodios: 12, vistos: 12 }), T({ anilistId: 2, episodios: 13 })]);
+  assert.deepStrictEqual(definirSerie(f, 50, 1).temporadas.map((t) => t.vistos), [12, 13]);
+  assert.deepStrictEqual(definirSerie(f, 5, 1).temporadas.map((t) => t.vistos), [12, 5]);
+  assert.strictEqual(definirSerie(serie({ episodios: 0, status: 'assistindo' }), 1100).episodiosVistos, 1100);
+});
+test('em alta: a temporada do ano certa, e busca vazia mostra o que está em alta', async () => {
+  assert.deepStrictEqual(anilist.temporadaDoAno(new Date(2026, 10, 11)), { season: 'FALL', seasonYear: 2026 });
+  assert.deepStrictEqual(anilist.temporadaDoAno(new Date(2026, 0, 5)), { season: 'WINTER', seasonYear: 2026 });
+  const pedidos = simular({ data: { Page: { media: [MIDIA] } } });
+  const r = await anilist.pesquisar('   ');
+  assert.strictEqual(r.length, 1);
+  assert.ok('season' in pedidos[0].corpo.variables && !('termo' in pedidos[0].corpo.variables));
+});
+
+const entrada = (id, extra = {}, midia = {}) => ({ status: 'planejo', vistos: 0, nota: 0, completoEm: '', ...extra,
+  midia: { id, format: 'TV', status: 'FINISHED', episodes: 12, seasonYear: 2020, title: { english: `Anime ${id}`, romaji: `Anime ${id}` }, coverImage: { large: 'https://img/c.jpg' }, relations: { edges: [] }, ...midia } });
+const liga = (tipo, id, format = 'TV') => ({ relationType: tipo, node: { id, type: 'ANIME', format } });
+
+test('importar: temporadas da mesma série viram um item, com progresso, status e nota', () => {
+  const { series, filmes } = anilist.agruparLista([
+    entrada(2, { status: 'assistindo', vistos: 5, nota: 9 }, { seasonYear: 2022, title: { english: 'Série Season 2' }, relations: { edges: [liga('PREQUEL', 1)] } }),
+    entrada(1, { status: 'completo', vistos: 12, nota: 8, completoEm: '2021-03-04' }, { seasonYear: 2020, title: { english: 'Série' }, relations: { edges: [liga('SEQUEL', 2)] } }),
+    entrada(7, { status: 'completo', vistos: 1, nota: 10, completoEm: '2019-01-02' }, { format: 'MOVIE', episodes: 1, title: { english: 'Um Filme' } }),
+    entrada(9, { status: 'largado', vistos: 3 }, { title: { english: 'Outra' } }),
+  ]);
+  assert.strictEqual(series.length, 2);
+  const s = series.find((x) => x.titulo === 'Série');
+  assert.deepStrictEqual(s.temporadas.map((t) => [t.anilistId, t.vistos]), [[1, 12], [2, 5]]);
+  assert.strictEqual(s.anilistId, 1);
+  assert.strictEqual(s.status, 'assistindo');
+  assert.strictEqual(s.episodiosVistos, 17);
+  assert.strictEqual(s.minhaNota, 4.5, 'média 8,5 de 10 → 4,5 estrelas');
+  assert.ok(s.anilistPendente && !s.visto);
+  assert.strictEqual(series.find((x) => x.titulo === 'Outra').status, 'largado');
+  assert.deepStrictEqual(filmes, [{ anime: true, anilistId: 7, titulo: 'Um Filme', ano: '2020', poster: 'https://img/c.jpg', visto: true, vistoEm: ['2019-01-02'], minhaNota: 5 }]);
+});
+test('importar: temporadas ligadas por um filme no meio continuam sendo a mesma série', () => {
+  const { series } = anilist.agruparLista([
+    entrada(1, { status: 'completo', vistos: 12 }, { relations: { edges: [liga('SEQUEL', 50, 'MOVIE')] } }),
+    entrada(3, { status: 'completo', vistos: 12 }, { seasonYear: 2023, relations: { edges: [liga('PREQUEL', 50, 'MOVIE')] } }),
+  ]);
+  assert.strictEqual(series.length, 1);
+  assert.strictEqual(series[0].status, 'completo');
+  assert.ok(series[0].visto);
+});
+test('importar: ao completar pela AniList, "completa" só vale com todas as temporadas lançadas vistas', async () => {
+  simularRede();
+  const ts = await anilist.temporadas(11);
+  // a pessoa listou só a primeira temporada, como completa
+  const { series } = anilist.agruparLista([entrada(11, { status: 'completo', vistos: 12, completoEm: '2022-01-01' }, { title: { english: 'Série' } })]);
+  const m = anilist.camposSerie(ts, { ...serie(), ...series[0] });
+  assert.strictEqual(m.anilistPendente, false);
+  assert.deepStrictEqual(m.temporadas.map((t) => t.vistos), [12, 0, 0]);
+  assert.strictEqual(m.status, 'assistindo');
+  assert.strictEqual(m.visto, false);
 });

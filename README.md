@@ -25,6 +25,12 @@ Esta ramificação acrescenta animes ao NANDFlix, sem tirar nada dos filmes. É 
 - **Onde assistir**: os links oficiais de cada temporada (Crunchyroll, Netflix…), além do Stremio. Por padrão só aparecem as plataformas que funcionam no Brasil; **Configurações → NANDRoll → Mostrar plataformas de fora do Brasil** mostra todas.
 - **Filmes de anime** continuam sendo filmes (TMDB, Letterboxd) e ganham os links de onde assistir.
 - Filtros **Animes** e **Assistindo** na lista e nas pílulas do celular.
+- **Dia a dia**: **+1** direto no cartão (e na fileira **Continue assistindo** do celular), clique no contador para **digitar** o número de episódios, selo de **episódios novos** na capa e quanto falta para terminar.
+- **Agenda**: os episódios que já saíram e os próximos, por dia e hora.
+- **Assistir** abre a plataforma oficial do anime (a última que você escolheu vira a preferida); o Stremio continua num botão ao lado e abre direto na série.
+- **Em alta nesta temporada** ao abrir Adicionar → Animes, e **importar a sua lista da AniList** (Configurações → NANDRoll) com episódios, status e notas.
+- Nota da AniList e do IMDb nas séries, e **Trocar capa** com as capas do TMDB e de cada temporada.
+- `.github/workflows/apk-nandroll.yml` monta o APK de teste a cada push e publica em Releases, com o nome NANDRoll (instala ao lado do NANDFlix).
 
 `node scripts/testar-anime.js` confere as regras de episódios e a leitura da AniList, sem internet.
 

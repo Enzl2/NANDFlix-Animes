@@ -127,8 +127,7 @@ function capaHTML(f, { tamanho = 'normal' } = {}) {
     ? `<img src="${esc(src)}" alt="" loading="${tamanho === 'grande' ? 'eager' : 'lazy'}" decoding="async" data-remoto="${esc(f.poster)}" data-titulo="${esc(f.titulo)}" data-ano="${esc(f.ano)}">`
     : vazia;
   // NANDRoll: séries em andamento mostram o progresso na capa.
-  const selo = seloSerieTexto(f);
-  return `<div class="capa">${img}${selo ? `<span class="selo-serie">${esc(selo)}</span>` : ''}</div>`;
+  return `<div class="capa">${img}${seloSerieHTML(f)}</div>`;
 }
 
 // Se a capa local sumir, tenta a URL original; se também falhar, mostra o quadro com o título.
@@ -322,7 +321,7 @@ function cartaoHTML(f) {
         <button class="acao${f.favorito ? ' fav-on' : ''}" data-acao="favorito" title="${tituloFav}" aria-label="${tituloFav}">${icone('Star', { preenchido: f.favorito })}</button>
         <button class="acao${hojeNaLista ? ' hoje-on' : ''}" data-acao="hoje" title="${tituloHoje(hojeNaLista)}" aria-label="${tituloHoje(hojeNaLista)}">${icone('CalendarClock')}</button>
         <button class="acao acao-stremio" data-acao="stremio" title="Abrir no Stremio" aria-label="Abrir no Stremio">${icone('Play')}</button>
-        ${ehSerie(f) ? '' : `<button class="acao acao-lb" data-acao="letterboxd" title="Abrir no Letterboxd" aria-label="Abrir no Letterboxd">${LB_PONTOS}</button>`}
+        ${ehSerie(f) ? acaoEpisodioHTML(f) : `<button class="acao acao-lb" data-acao="letterboxd" title="Abrir no Letterboxd" aria-label="Abrir no Letterboxd">${LB_PONTOS}</button>`}
       </div>
     </article>`;
 }
@@ -338,7 +337,7 @@ const cacheFileira = new Map();
 function assinatura(f) {
   return [f.titulo, f.ano, f.diretor, f.capaLocal, f.poster].join('\u0001');
 }
-const estadoCartao = (f) => `${Boolean(f.visto)}|${Boolean(f.favorito)}|${naWatchlist(f.id)}`;
+const estadoCartao = (f) => `${Boolean(f.visto)}|${Boolean(f.favorito)}|${naWatchlist(f.id)}|${estadoCartaoAnime(f)}`; // NANDRoll: progresso das séries
 
 function atualizarCartao(el, f) {
   el.classList.toggle('visto', Boolean(f.visto));
@@ -365,6 +364,7 @@ function atualizarCartao(el, f) {
   botaoHoje.classList.toggle('hoje-on', hojeNaLista);
   botaoHoje.title = tituloHoje(hojeNaLista);
   botaoHoje.setAttribute('aria-label', tituloHoje(hojeNaLista));
+  atualizarCartaoAnime(el, f); // NANDRoll
 }
 
 function elementoCartao(f, cache = cacheCartoes) {
@@ -660,7 +660,9 @@ async function alternar(id, campo, valor) {
   if (novo && ehSerie(f)) { Object.assign(f, novo); aposMudarDia(id); }
 }
 
-async function abrirStremio(id) {
+async function abrirStremio(id, { stremio = false } = {}) {
+  // NANDRoll: o Assistir de um anime abre a plataforma oficial, se houver.
+  if (!stremio && await assistirAnime(id)) return;
   const r = await api.abrirStremio(id);
   if (r.semApp) {
     const escolha = await perguntar({
@@ -1472,9 +1474,9 @@ function montarBuscaTmdb({ termoInicial, atualTmdb, aoEscolher, fonte = () => 'f
 
   async function buscar() {
     const termo = input.value.trim();
-    if (!termo) { area.innerHTML = ''; return; }
-    // NANDRoll: animes são buscados na AniList (sem chave).
+    // NANDRoll: animes são buscados na AniList (sem chave); sem termo, o que está em alta.
     const anime = fonte() === 'anime';
+    if (!termo && !anime) { area.innerHTML = ''; return; }
     if (!anime && !estado.config.tmdbKey) { geracao++; area.innerHTML = '<p class="mensagem">Coloque a chave do TMDB em Configurações para buscar.</p>'; return; }
     const minha = ++geracao;
     area.innerHTML = `<p class="mensagem carregando">Buscando ${anime ? 'na AniList' : 'no TMDB'}</p>`;
@@ -1483,7 +1485,7 @@ function montarBuscaTmdb({ termoInicial, atualTmdb, aoEscolher, fonte = () => 'f
     if (!r.ok) { area.innerHTML = `<p class="mensagem">${esc(anime ? 'Sem conexão com a AniList. Verifique a internet e tente de novo.' : mensagemErroTmdb(r.erro))}</p>`; return; }
     itens = r.dados;
     area.innerHTML = itens.length
-      ? `<div class="resultados">${resultadosHTML(itens, atualTmdb)}</div>`
+      ? `${anime && !termo ? '<h3 class="trocar-subtitulo">Em alta nesta temporada</h3>' : ''}<div class="resultados">${resultadosHTML(itens, atualTmdb)}</div>`
       : `<p class="mensagem">${anime ? 'Nada encontrado. Tente o título em inglês ou em japonês (romaji).' : 'Nada encontrado. Tente o título original ou o código do IMDb (tt…).'}</p>`;
   }
   ligarFontesBusca(modal, () => { input.placeholder = fonte() === 'anime' ? 'Digite o nome do anime e tecle Enter' : 'Digite o título e tecle Enter'; itens = []; area.innerHTML = ''; buscar(); input.focus(); });
@@ -1497,13 +1499,14 @@ function montarBuscaTmdb({ termoInicial, atualTmdb, aoEscolher, fonte = () => 'f
   });
   input.focus();
   input.select();
-  if (termoInicial) buscar();
+  if (termoInicial || fonte() === 'anime') buscar();
 }
 
 // Duas partes: as outras capas deste mesmo filme no TMDB (idioma original
 // primeiro) e, embaixo, a busca para quando o filme achado é o errado.
 async function abrirTrocarCapa(id) {
   const f = porId(id);
+  if (ehSerie(f)) { abrirTrocarCapaSerie(id); return; } // NANDRoll
   const trocar = async (escolha, botao, mensagem) => {
     botao.disabled = true;
     botao.classList.add('carregando');
@@ -1819,6 +1822,7 @@ function metaCurtaHTML(f) {
 function notasHTML(info) {
   if (!info) return '';
   const chips = [];
+  if (info.anilist) chips.push(`<span class="nota-chip" title="Nota média na AniList"><span class="marca-anilist">AniList</span>${esc(info.anilist)}%</span>`); // NANDRoll
   if (info.imdb) chips.push(`<span class="nota-chip" title="Nota no IMDb"><span class="marca-imdb">IMDb</span>${esc(info.imdb)}</span>`);
   if (info.metascore) {
     const n = Number(info.metascore);

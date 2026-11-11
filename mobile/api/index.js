@@ -14,7 +14,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Marcas } from '../../lib/marcas.js';
 import { Nuvem } from '../../lib/nuvem.js';
-import { novoFilme, acharRepetido, ehSerie, passoSerie, statusSerie, comDia, vistoSerie } from '../../lib/filmes.js';
+import { novoFilme, acharRepetido, ehSerie, passoSerie, definirSerie, statusSerie, comDia, vistoSerie } from '../../lib/filmes.js';
 import tmdb from '../../lib/tmdb.js';
 import anilist from '../../lib/anilist.js';
 import omdb from '../../lib/omdb.js';
@@ -166,6 +166,7 @@ async function capaTmdbDaSerie(f, d) {
   const m = { tmdbTvEm: new Date().toISOString(), tmdbTvId: c ? c.tmdbTvId : '' };
   if (c && c.poster && !f.capaPersonalizada) Object.assign(m, { poster: c.poster, capaTmdb: true, capaNaoEncontrada: false });
   if (c && c.logo) m.logo = c.logo;
+  if (c && c.imdbID && !f.imdbID) m.imdbID = c.imdbID; // Stremio direto na série e notas do IMDb
   if (c && c.sinopse) m.info = { ...(f.info || {}), sinopse: c.sinopse, sinopsePt: true };
   atualizarFilme(f.id, m);
 }
@@ -175,7 +176,7 @@ async function atualizarSeriesEmExibicao() {
   if (atualizandoSeries || !config.nandroll) return; // NANDRoll é opcional (Configurações)
   atualizandoSeries = true;
   const limite = Date.now() - 6 * 3600 * 1000;
-  const fila = filmes.filter((f) => ehSerie(f) && f.anilistId
+  const fila = filmes.filter((f) => f.anilistId && (ehSerie(f) || !f.anilistEm)
     && (!f.anilistEm || (config.tmdbKey && !f.tmdbTvEm) || (['em exibição', 'não lançado', 'em hiato'].includes(f.exibicao) && Date.parse(f.anilistEm) < limite)));
   try {
     for (const f of fila) {
@@ -186,6 +187,38 @@ async function atualizarSeriesEmExibicao() {
   } catch { /* sem internet: fica para a próxima vez */ }
   if (fila.length) gravarAgora();
   atualizandoSeries = false;
+}
+
+
+// As capas para escolher numa série: as do TMDB (se a série foi achada lá) e a de cada temporada (AniList).
+async function capasDaSerie(f) {
+  const doTmdb = f.tmdbTvId && config.tmdbKey ? await tmdb.capas(config.tmdbKey, f.tmdbTvId, 'ja', 'tv').catch(() => []) : [];
+  const dasTemporadas = (f.temporadas || []).filter((t) => t.poster).map((t) => ({ poster: t.poster, miniatura: t.poster, idioma: '', rotulo: t.titulo }));
+  return [...doTmdb, ...dasTemporadas];
+}
+
+// Importa a lista de animes de um usuário da AniList (pública). O que já está
+// na lista não entra de novo. As séries chegam com o progresso e a nota; as
+// temporadas, a capa e o resto são completados em seguida, em segundo plano.
+async function importarAnilist(nome) {
+  const entradas = await anilist.listaDoUsuario(nome);
+  if (!entradas) return { naoEncontrado: true };
+  const grupos = anilist.agruparLista(entradas);
+  let ordem = filmes.reduce((m, f) => Math.max(m, f.ordem || 0), 0);
+  const agora = new Date().toISOString();
+  const r = { series: 0, filmes: 0, repetidos: 0 };
+  for (const d of [...grupos.series, ...grupos.filmes]) {
+    if (acharRepetido(filmes, d)) { r.repetidos++; continue; }
+    const serie = d.tipo === 'serie';
+    filmes.push(novoFilme({ ...d, ordem: ++ordem, ...(serie ? { tmdbEm: agora } : {}) }));
+    if (serie) r.series++; else r.filmes++;
+  }
+  if (r.series || r.filmes) {
+    gravarAgora();
+    atualizarSeriesEmExibicao();
+    buscarCapasQueFaltam();
+  }
+  return { ...r, lista: filmes };
 }
 
 let buscaEmAndamento = null;
@@ -309,7 +342,8 @@ function abrirFora(url) {
 }
 
 function linksStremio(f) {
-  if (f.imdbID) return { app: `stremio:///detail/movie/${f.imdbID}`, web: `https://web.stremio.com/#/detail/movie/${f.imdbID}` };
+  const tipo = ehSerie(f) ? 'series' : 'movie'; // NANDRoll: séries de anime
+  if (f.imdbID) return { app: `stremio:///detail/${tipo}/${f.imdbID}`, web: `https://web.stremio.com/#/detail/${tipo}/${f.imdbID}` };
   const q = encodeURIComponent(f.titulo);
   return { app: `stremio:///search?search=${q}`, web: `https://web.stremio.com/#/search?search=${q}` };
 }
@@ -451,7 +485,7 @@ window.api = {
     return { filmes, config: configPublica(), pastaDados: '', versao: VERSAO };
   },
   salvarConfig: async (mudancas) => {
-    const permitidas = ['tmdbKey', 'omdbKey', 'stremio', 'visualizacao', 'ordenacao', 'watchlists', 'watchlistHoje', 'filmesDoMes', 'tierlist', 'tierlists', 'tierlistAtiva', 'filtrosSorteio', 'listas', 'nandroll', 'nandrollTodasPlataformas'];
+    const permitidas = ['tmdbKey', 'omdbKey', 'stremio', 'visualizacao', 'ordenacao', 'watchlists', 'watchlistHoje', 'filmesDoMes', 'tierlist', 'tierlists', 'tierlistAtiva', 'filtrosSorteio', 'listas', 'nandroll', 'nandrollTodasPlataformas', 'nandrollAssistir', 'nandrollPlataforma'];
     for (const k of permitidas) if (k in mudancas) config[k] = mudancas[k];
     if ('nandroll' in mudancas) { config.nandroll = Boolean(mudancas.nandroll); if (config.nandroll) atualizarSeriesEmExibicao(); }
     gravarConfig();
@@ -474,6 +508,12 @@ window.api = {
     if (!ehSerie(f)) return null;
     return atualizarFilme(id, comDia(f, passoSerie(f, Number(delta) < 0 ? -1 : 1, Number.isInteger(temporada) ? temporada : null), dia));
   },
+  definirSerie: async (id, n, dia, temporada) => {
+    const f = filmes.find((x) => x.id === id);
+    if (!ehSerie(f)) return null;
+    return atualizarFilme(id, comDia(f, definirSerie(f, n, Number.isInteger(temporada) ? temporada : null), dia));
+  },
+  importarAnilist: (nome) => chamar(() => importarAnilist(nome)),
   statusSerie: async (id, status, dia) => {
     const f = filmes.find((x) => x.id === id);
     if (!ehSerie(f)) return null;
@@ -549,7 +589,10 @@ window.api = {
     const f = filmes.find((x) => x.id === id);
     if (!f) return null;
     try {
-      if (escolha.poster && String(escolha.tmdbId) === String(f.tmdbId)) atualizarFilme(id, { poster: escolha.poster, capaPersonalizada: false, capaNaoEncontrada: false });
+      if (ehSerie(f)) {
+        if (!/^https:\/\//.test(escolha.poster || '')) return null;
+        atualizarFilme(id, { poster: escolha.poster, capaTmdb: true, capaPersonalizada: false, capaNaoEncontrada: false });
+      } else if (escolha.poster && String(escolha.tmdbId) === String(f.tmdbId)) atualizarFilme(id, { poster: escolha.poster, capaPersonalizada: false, capaNaoEncontrada: false });
       else { atualizarFilme(id, { capaPersonalizada: false }); await processarTmdb(f, { tmdbId: escolha.tmdbId, trocarFilme: true }); }
     } catch (e) { return { erro: e.message }; }
     gravarAgora();
@@ -597,6 +640,7 @@ window.api = {
   detalhesTmdb: (tmdbId) => chamar(() => tmdb.detalhes(config.tmdbKey, tmdbId)),
   capasTmdb: (id) => chamar(() => {
     const f = filmes.find((x) => x.id === id);
+    if (ehSerie(f)) return capasDaSerie(f);
     return f && f.tmdbId ? tmdb.capas(config.tmdbKey, f.tmdbId, f.idiomaOriginal) : [];
   }),
   relacionadosTmdb: (id) => chamar(async () => {

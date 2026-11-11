@@ -2812,3 +2812,45 @@ body.com-entrada { overflow: hidden; }
 /* No celular a capa do painel fica escondida: a da temporada aparece no próprio bloco. */
 .serie-capa-temporada { display: none; width: 56px; height: auto; border-radius: 6px; flex: none; }
 html.celular .serie-capa-temporada { display: block; }
+
+/* NANDRoll — episódios novos, digitar, "+1" e agenda */
+.selo-serie.novo { background: var(--gradiente-acento); color: #fff; }
+button.serie-conta { background: none; border: 0; padding: 4px 6px; margin: -4px -6px; border-radius: 8px; cursor: text; text-align: left; font-family: inherit; transition: background .15s ease-out; }
+button.serie-conta:hover { background: var(--superficie-2); }
+button.serie-conta:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel-foco); }
+.serie-digitar { width: 9ch; min-height: 44px; padding: 0 12px; border-radius: 10px; background: var(--superficie-2); border: 1px solid var(--borda-controle); color: var(--texto); font: 700 18px/1 var(--ui); font-variant-numeric: tabular-nums; }
+.serie-digitar:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel-foco); }
+.serie-falta { margin: 0; font-size: 13px; color: var(--texto-2); }
+.serie-novos { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; color: var(--acento-texto); }
+.serie-novos .ico { width: 16px; height: 16px; flex: none; }
+.acao.acao-ep { font: 700 13px/1 var(--ui); font-variant-numeric: tabular-nums; }
+.marca-anilist { font-weight: 700; color: var(--texto-2); margin-right: 6px; }
+.chip-agenda { display: inline-flex; align-items: center; gap: 8px; }
+.chip-agenda .ico { width: 15px; height: 15px; }
+.nandroll-importar { margin-top: 12px; }
+.agenda { display: flex; flex-direction: column; gap: 8px; }
+.agenda-dia { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 13px; font-weight: 600; color: var(--texto-2); }
+.agenda-dia:first-child { margin-top: 0; }
+.agenda-dia-novos { color: var(--acento-texto); }
+.agenda-dia .ico { width: 15px; height: 15px; }
+.agenda-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.agenda-item { display: flex; align-items: center; gap: 12px; }
+.agenda-abrir { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px; border: 0; border-radius: 10px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .15s ease-out; }
+.agenda-abrir:hover { background: var(--superficie-2); }
+.agenda-abrir:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel-foco); }
+.agenda-capa { width: 32px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; background: var(--superficie-2); flex: none; }
+.agenda-capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.agenda-texto { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.agenda-texto b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-texto small { font-size: 13px; color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-hora { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--texto-2); padding-right: 8px; }
+.agenda-mais { min-height: 40px; padding: 0 14px; font-size: 13px; flex: none; }
+/* Celular: a fileira "Continue assistindo" */
+.cel-continuar { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.cel-ep-mais { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; border: 0; border-radius: 8px; background: var(--superficie-2); color: var(--texto); font: 600 13px/1 var(--ui); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cel-ep-mais:active { transform: scale(.97); }
+.cel-ep-mais.novo { background: var(--gradiente-acento); color: #fff; }
+.cel-ep-mais .ico { width: 14px; height: 14px; }
+.cel-capa .selo-serie { left: 6px; bottom: 6px; }
+.cel-continuar { scroll-snap-align: start; }
+.nandroll-opcoes { flex-direction: column; align-items: flex-start; gap: 10px; }
