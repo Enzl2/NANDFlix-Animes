@@ -13,6 +13,21 @@
 
 O NANDFlix é um app de desktop para catalogar os filmes que você quer ver. Ele troca a planilha por uma interface no estilo Netflix: o filme sorteado ocupa o topo com o trailer rodando, as capas viram trailers ao passar o mouse e cada filme tem uma página de detalhes com logo, notas, sinopse, elenco e duração. Na hora de assistir, ele abre o filme direto no Stremio. Ele também guarda o que você viu num calendário, deixa você dar notas, escrever uma página sobre cada filme, montar tierlists, criar stories para o Instagram e ver as suas estatísticas. Tem também uma **versão para Android**, que pode ficar igual à do computador pela nuvem.
 
+## NANDRoll: animes (em desenvolvimento)
+
+Esta ramificação acrescenta animes ao NANDFlix, sem tirar nada dos filmes. É **opcional**: ligue em **Configurações → NANDRoll (animes) → Ativar animes**. Desligado, o app é o NANDFlix de sempre.
+
+- **Adicionar → Animes**: a busca passa a ter **Filmes** (TMDB) e **Animes** ([AniList](https://anilist.co), sem chave).
+- **Temporadas juntas**: cada série é um item só, com todas as temporadas (achadas pela AniList a partir de qualquer uma). No painel, **Tudo** mostra a soma e a capa principal; escolher uma temporada mostra os episódios e a capa dela, num quadro menor.
+- **Séries** têm contador de episódios (**Vi mais um**), barra de progresso e status: planejo ver, assistindo, pausado, completo, larguei. Completar marca como vista e entra no calendário.
+- **Em exibição**: o painel mostra quando sai o próximo episódio (atualizado ao abrir o app).
+- **Capa e logo das séries** vêm do TMDB quando há chave (maiores, e a logo vira o título); sem chave, fica a capa da AniList.
+- **Onde assistir**: os links oficiais de cada temporada (Crunchyroll, Netflix…), além do Stremio. Por padrão só aparecem as plataformas que funcionam no Brasil; **Configurações → NANDRoll → Mostrar plataformas de fora do Brasil** mostra todas.
+- **Filmes de anime** continuam sendo filmes (TMDB, Letterboxd) e ganham os links de onde assistir.
+- Filtros **Animes** e **Assistindo** na lista e nas pílulas do celular.
+
+`node scripts/testar-anime.js` confere as regras de episódios e a leitura da AniList, sem internet.
+
 ## Download
 
 | Arquivo | O que é |
