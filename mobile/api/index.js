@@ -14,7 +14,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Marcas } from '../../lib/marcas.js';
 import { Nuvem } from '../../lib/nuvem.js';
-import { novoFilme, acharRepetido, ehSerie, passoSerie, definirSerie, statusSerie, comDia, vistoSerie } from '../../lib/filmes.js';
+import { novoFilme, acharRepetido, ehSerie, passoSerie, definirSerie, alternarEpisodio, statusSerie, comDia, vistoSerie } from '../../lib/filmes.js';
 import tmdb from '../../lib/tmdb.js';
 import anilist from '../../lib/anilist.js';
 import omdb from '../../lib/omdb.js';
@@ -512,6 +512,11 @@ window.api = {
     const f = filmes.find((x) => x.id === id);
     if (!ehSerie(f)) return null;
     return atualizarFilme(id, comDia(f, definirSerie(f, n, Number.isInteger(temporada) ? temporada : null), dia));
+  },
+  episodioSerie: async (id, temporada, n, dia) => {
+    const f = filmes.find((x) => x.id === id);
+    if (!ehSerie(f)) return null;
+    return atualizarFilme(id, comDia(f, alternarEpisodio(f, Number(temporada), n), dia));
   },
   importarAnilist: (nome) => chamar(() => importarAnilist(nome)),
   statusSerie: async (id, status, dia) => {

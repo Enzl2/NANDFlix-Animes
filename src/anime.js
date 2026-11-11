@@ -114,6 +114,21 @@ const STATUS_ROTULOS = { planejo: 'Planejo ver', assistindo: 'Assistindo', pausa
 const temporadasDe = (f) => (Array.isArray(f.temporadas) ? f.temporadas : []);
 const temporadaLancada = (t) => t.exibicao !== 'não lançado';
 const temporadaCompleta = (t) => Boolean(t.episodios) && (Number(t.vistos) || 0) >= t.episodios;
+// Um filme da ordem para assistir (Temporada 1 → Filme → Temporada 2).
+const ehFilmeDaOrdem = (t) => Boolean(t) && t.formato === 'MOVIE';
+
+// Os episódios vistos de uma temporada (como em lib/filmes.js): a `lista`
+// quando há avulsos, senão do 1 ao `vistos`.
+function marcadosDe(t) {
+  if (Array.isArray(t.lista)) return t.lista.map(Number);
+  return Array.from({ length: Math.max(0, Number(t.vistos) || 0) }, (_, i) => i + 1);
+}
+function primeiroQueFalta(t) {
+  const vistos = new Set(marcadosDe(t));
+  let n = 1;
+  while (vistos.has(n)) n++;
+  return n;
+}
 
 // A temporada escolhida em cada painel (id do item → índice; sem entrada = "Tudo").
 const temporadaEscolhida = new Map();
@@ -131,6 +146,7 @@ function temporadaCorrente(f) {
 // Nome curto da temporada para o chip: o que sobra do título depois do nome da
 // série ("SPY x FAMILY Season 2" → "Temporada 2", "… Mugen Train Arc" → "Mugen Train Arc").
 function rotuloTemporada(f, t, i) {
+  if (ehFilmeDaOrdem(t)) return rotuloFilme(f, t);
   if (i === 0) return 'Temporada 1';
   const limpo = (x) => String(x || '').replace(/[×✕]/g, 'x').trim();
   const raiz = temporadasDe(f)[0] || {};
@@ -145,6 +161,19 @@ function rotuloTemporada(f, t, i) {
     .replace(/\bfinal season\b/i, 'Temporada final')
     .replace(/\bseason\s*(\d+)\b/i, 'Temporada $1')
     .replace(/\b(?:part|cour)\s*(\d+)\b/i, 'Parte $1');
+}
+
+// "Filme: Reze Arc" (o que sobra do título do filme depois do nome da série).
+function rotuloFilme(f, t) {
+  const raiz = temporadasDe(f).find((x) => !ehFilmeDaOrdem(x)) || {};
+  const limpo = (x) => String(x || '').replace(/[×✕]/g, 'x').trim();
+  let resto = '';
+  for (const [titulo, base] of [[t.titulo, raiz.titulo], [t.tituloRomaji, raiz.tituloRomaji], [t.titulo, raiz.tituloRomaji]]) {
+    const a = limpo(titulo); const b = limpo(base);
+    if (a && b && a.toLowerCase().startsWith(b.toLowerCase()) && a.length > b.length) { resto = a.slice(b.length).replace(/^[\s:–—-]+/, '').trim(); break; }
+  }
+  resto = resto.replace(/^(?:the\s+)?movie\b[\s:–—-]*/i, '').replace(/^gekijouban\b[\s:–—-]*/i, '').trim();
+  return resto ? `Filme: ${resto}` : 'Filme';
 }
 
 // "3 / 12 episódios", ou "3 episódios vistos" quando ainda não se sabe o total.
@@ -167,9 +196,13 @@ function proximoEpisodioTexto(p) {
 // Linha de dados do painel de uma série: "2022  4 temporadas  50 eps  24 min/ep  finalizado".
 function serieMetaHTML(f) {
   const partes = [f.ano];
-  const n = temporadasDe(f).filter(temporadaLancada).length;
+  const lancadas = temporadasDe(f).filter(temporadaLancada);
+  const n = lancadas.filter((t) => !ehFilmeDaOrdem(t)).length;
+  const filmes = lancadas.length - n;
   if (n > 1) partes.push(`${n} temporadas`);
-  if (f.episodios) partes.push(`${f.episodios} ep${f.episodios > 1 ? 's' : ''}`);
+  if (filmes) partes.push(filmes === 1 ? '1 filme' : `${filmes} filmes`);
+  const eps = lancadas.length ? (lancadas.every((t) => t.episodios) ? lancadas.filter((t) => !ehFilmeDaOrdem(t)).reduce((s, t) => s + t.episodios, 0) : 0) : Number(f.episodios) || 0;
+  if (eps) partes.push(`${eps} ep${eps > 1 ? 's' : ''}`);
   if (f.duracao) partes.push(`${f.duracao} min/ep`);
   if (f.exibicao) partes.push(f.exibicao);
   return partes.filter(Boolean).map((p) => `<span>${esc(p)}</span>`).join('') || '&nbsp;';
@@ -207,7 +240,7 @@ function chipsTemporadasHTML(f, sel) {
   const chip = (i, rotulo, extra = '', titulo = '') => `<button class="chip chip-temporada${sel === i ? ' ativo' : ''}${extra}" data-serie="temporada" data-t="${i === null ? '' : i}" role="tab" aria-selected="${sel === i}"${titulo ? ` title="${esc(titulo)}"` : ''}>${rotulo}</button>`;
   return `<div class="chips-linha temporadas" role="tablist" aria-label="Temporadas">
     ${chip(null, 'Tudo')}
-    ${ts.map((t, i) => chip(i, `${temporadaCompleta(t) ? icone('Check') : ''}${esc(rotuloTemporada(f, t, i))}`, temporadaLancada(t) ? '' : ' nao-lancada', `${t.titulo}${t.ano ? ` (${t.ano})` : ''}`)).join('')}
+    ${ts.map((t, i) => chip(i, `${temporadaCompleta(t) ? icone('Check') : ehFilmeDaOrdem(t) ? icone('Clapperboard') : ''}${esc(rotuloTemporada(f, t, i))}`, temporadaLancada(t) ? '' : ' nao-lancada', `${t.titulo}${t.ano ? ` (${t.ano})` : ''}`)).join('')}
   </div>`;
 }
 
@@ -226,27 +259,33 @@ function animeNoPainelHTML(f) {
   // Com todos os episódios mas sem estar completa (o ✓ foi desmarcado), "Vi mais um" completa de novo.
   const cheio = t ? (temporadaCompleta(t) || !temporadaLancada(t)) : (total > 0 && vistos >= total && status === 'completo');
   const nomeDaVez = !t && ts.length > 1 && corrente && status !== 'completo' ? `<p class="serie-da-vez">Você está em: <b>${esc(rotuloTemporada(f, corrente, ts.indexOf(corrente)))}</b></p>` : '';
+  const filme = ehFilmeDaOrdem(t);
   const cabecalho = t ? `
       <div class="serie-temporada">
         ${t.poster ? `<img class="serie-capa-temporada" src="${esc(t.poster)}" alt="" loading="lazy">` : ''}
-        <p><b>${esc(t.titulo)}</b><span>${[t.ano, t.episodios ? `${t.episodios} eps` : '', t.exibicao].filter(Boolean).map(esc).join(' · ')}</span></p>
+        <p><b>${esc(t.titulo)}</b><span>${[t.ano, filme ? 'filme' : t.episodios ? `${t.episodios} eps` : '', filme && t.duracao ? `${t.duracao} min` : '', t.exibicao].filter(Boolean).map(esc).join(' · ')}</span></p>
       </div>` : '';
+  // A grade de episódios: da temporada escolhida, ou da única que houver.
+  const iGrade = sel !== null ? sel : ts.length === 1 ? 0 : null;
   return `
     <div class="serie" data-anime-bloco>
       ${chipsTemporadasHTML(f, sel)}
       ${cabecalho}${nomeDaVez}
       <div class="serie-linha">
-        <button class="redondo serie-menos" data-serie="menos" title="Um episódio a menos" aria-label="Um episódio a menos"${vistos ? '' : ' disabled'}>${icone('Minus')}</button>
-        <button class="serie-conta" data-serie="digitar" aria-live="polite" title="Clique para digitar quantos episódios você já viu">${contaEpisodiosHTML(vistos, total)}</button>
-        <button class="btn btn-laranja serie-mais" data-serie="mais"${cheio ? ' disabled' : ''}>${icone('Plus')} Vi mais um</button>
+        <button class="redondo serie-menos" data-serie="menos" title="${filme ? 'Desmarcar o filme' : 'Um episódio a menos'}" aria-label="${filme ? 'Desmarcar o filme' : 'Um episódio a menos'}"${vistos ? '' : ' disabled'}>${icone('Minus')}</button>
+        ${filme
+    ? `<span class="serie-conta">${vistos ? `${icone('Check')} Filme visto` : 'Filme não visto'}</span>`
+    : `<button class="serie-conta" data-serie="digitar" aria-live="polite" title="Clique para digitar quantos episódios você já viu">${contaEpisodiosHTML(vistos, total)}</button>`}
+        <button class="btn btn-laranja serie-mais" data-serie="mais"${cheio ? ' disabled' : ''}>${icone('Plus')} ${filme ? 'Vi o filme' : 'Vi mais um'}</button>
         <label class="serie-status"><span class="sr-so">Status</span>
           <select data-serie-status aria-label="Status da série">
             ${Object.entries(STATUS_ROTULOS).map(([k, r]) => `<option value="${k}"${k === status ? ' selected' : ''}>${r}</option>`).join('')}
           </select>
         </label>
       </div>
-      ${total ? `<div class="serie-barra" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${vistos}"><span style="width:${Math.round((vistos / total) * 100)}%"></span></div>` : ''}
-      ${faltaTexto(total - vistos, t ? t.duracao : f.duracao, total) ? `<p class="serie-falta">${esc(faltaTexto(total - vistos, t ? t.duracao : f.duracao, total))}</p>` : ''}
+      ${gradeHTML(f, iGrade, sel)}
+      ${total && !filme ? `<div class="serie-barra" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${vistos}"><span style="width:${Math.round((vistos / total) * 100)}%"></span></div>` : ''}
+      ${!filme && faltaTexto(total - vistos, t ? t.duracao : f.duracao, total) ? `<p class="serie-falta">${esc(faltaTexto(total - vistos, t ? t.duracao : f.duracao, total))}</p>` : ''}
       ${!t && episodiosNovos(f) ? `<p class="serie-novos">${icone('Sparkles')} ${episodiosNovos(f) === 1 ? '1 episódio novo' : `${episodiosNovos(f)} episódios novos`} para ver</p>` : ''}
       ${t && !temporadaLancada(t) ? '<p class="serie-proximo">Ainda não lançada.</p>' : ''}
       ${proximo ? `<p class="serie-proximo">${icone('CalendarClock')} ${esc(proximo)}</p>` : ''}
@@ -292,7 +331,10 @@ function episodiosNovos(f) {
   const ts = temporadasDe(f);
   const t = ts.length ? temporadaCorrente(f) : { ...f, vistos: f.episodiosVistos };
   if (!t || t.exibicao !== 'em exibição') return 0;
-  return Math.max(0, episodiosNoAr(t) - (Number(t.vistos) || 0));
+  const vistos = new Set(marcadosDe(t));
+  let novos = 0;
+  for (let n = 1; n <= episodiosNoAr(t); n++) if (!vistos.has(n)) novos++;
+  return novos;
 }
 
 // "Faltam 20 episódios · cerca de 8 h"
@@ -320,7 +362,56 @@ function seloSerieHTML(f) {
 // O episódio que a pessoa vai ver agora (o número dentro da temporada em que está).
 function proximoParaVer(f) {
   const t = temporadasDe(f).length ? temporadaCorrente(f) : null;
-  return (Number(t ? t.vistos : f.episodiosVistos) || 0) + 1;
+  return t ? primeiroQueFalta(t) : (Number(f.episodiosVistos) || 0) + 1;
+}
+// "Ep. 5", ou "Filme" quando a vez é do filme da ordem.
+const vezEhFilme = (f) => ehFilmeDaOrdem(temporadasDe(f).length ? temporadaCorrente(f) : null);
+const rotuloDaVez = (f) => (vezEhFilme(f) ? 'Filme' : `Ep. ${proximoParaVer(f)}`);
+const textoDaVez = (f) => (vezEhFilme(f) ? 'o filme' : `o episódio ${proximoParaVer(f)}`);
+
+// ---- A grade de episódios ----
+//
+// Para marcar um episódio avulso (viu o 7 sem ter visto o 5). Fica fechada:
+// abre pelo botão "Escolher episódios". Os +1 e -1 continuam funcionando.
+const gradesAbertas = new Set();
+
+function gradeHTML(f, indice, sel) {
+  const ts = temporadasDe(f);
+  if (!ts.length) return '';
+  // Em "Tudo", com várias temporadas, o botão abre a grade da temporada da vez.
+  if (indice === null) {
+    const c = temporadaCorrente(f);
+    if (!c || ehFilmeDaOrdem(c)) return '';
+    return `<button class="chip serie-grade-abrir" data-serie="grade-da-vez" data-t="${ts.indexOf(c)}">${icone('LayoutGrid')} Escolher episódios</button>`;
+  }
+  const t = ts[indice];
+  if (!t || ehFilmeDaOrdem(t)) return '';
+  const vistos = new Set(marcadosDe(t));
+  const noAr = episodiosNoAr(t);
+  const ate = Math.max(Number(t.episodios) || 0, noAr, ...vistos, 0);
+  if (!ate) return '';
+  const aberta = gradesAbertas.has(f.id);
+  const botao = `<button class="chip serie-grade-abrir${aberta ? ' ativo' : ''}" data-serie="grade" aria-expanded="${aberta}">${icone('LayoutGrid')} ${aberta ? 'Fechar episódios' : 'Escolher episódios'}</button>`;
+  if (!aberta) return botao;
+  // Ainda não saiu: só quando se sabe (temporada em exibição ou não lançada).
+  const saiu = (n) => !['em exibição', 'não lançado'].includes(t.exibicao) || n <= noAr;
+  const eps = [];
+  for (let n = 1; n <= ate; n++) {
+    const visto = vistos.has(n);
+    eps.push(`<button class="ep${visto ? ' visto' : ''}${saiu(n) ? '' : ' futuro'}" data-serie="ep" data-t="${indice}" data-n="${n}" aria-pressed="${visto}" aria-label="Episódio ${n}${visto ? ', visto' : ''}"${saiu(n) || visto ? '' : ' disabled'}>${n}</button>`);
+  }
+  return `${botao}<div class="serie-grade" role="group" aria-label="Episódios de ${esc(rotuloTemporada(f, t, indice))}">${eps.join('')}</div>`;
+}
+
+async function alternarEp(id, indice, n) {
+  const f = porId(id);
+  if (!ehSerie(f)) return;
+  const antes = f.status;
+  const novo = await api.episodioSerie(id, indice, n, hoje());
+  if (!novo) return;
+  Object.assign(f, novo);
+  if (f.status === 'completo' && antes !== 'completo') aviso(`“${f.titulo}” completo!`, { tipo: 'ok' });
+  aposMudarDia(id);
 }
 
 async function mudarEpisodios(id, delta, indice) {
@@ -340,14 +431,14 @@ let avisoEpisodio = null;
 async function viMaisUm(id) {
   const f = porId(id);
   if (!ehSerie(f)) return;
-  const n = proximoParaVer(f);
+  const vez = textoDaVez(f);
   const antes = Number(f.episodiosVistos) || 0;
   await mudarEpisodios(id, 1, null);
   if ((Number(f.episodiosVistos) || 0) === antes) return; // não havia mais o que ver
   if (typeof renderCelular === 'function') renderCelular();
   if (avisoEpisodio) avisoEpisodio.remove(); // um aviso só, mesmo tocando várias vezes seguidas
   avisoEpisodio = null;
-  if (f.status !== 'completo') avisoEpisodio = aviso(`${f.titulo}: episódio ${n} visto`, { tipo: 'ok', acao: { rotulo: 'Desfazer', fn: async () => { await mudarEpisodios(id, -1, null); if (typeof renderCelular === 'function') renderCelular(); } } });
+  if (f.status !== 'completo') avisoEpisodio = aviso(`${f.titulo}: ${vez} visto`, { tipo: 'ok', acao: { rotulo: 'Desfazer', fn: async () => { await mudarEpisodios(id, -1, null); if (typeof renderCelular === 'function') renderCelular(); } } });
 }
 
 // Trocar o contador por um campo para digitar o número (Enter grava, Esc desiste).
@@ -405,7 +496,7 @@ async function assistirAnime(id) {
   if (!l) return false;
   const r = await api.abrirPlataforma(id, l.i, l.temporada);
   if (!r || !r.ok) return false;
-  aviso(`Abrindo em ${l.site}${ehSerie(f) ? ` · episódio ${proximoParaVer(f)}` : ''}`, ehSerie(f) && f.status !== 'completo'
+  aviso(`Abrindo em ${l.site}${ehSerie(f) ? ` · ${textoDaVez(f)}` : ''}`, ehSerie(f) && f.status !== 'completo'
     ? { acao: { rotulo: 'Vi mais um', fn: () => viMaisUm(id) }, duracao: 8000 } : {});
   return true;
 }
@@ -436,6 +527,16 @@ function ligarAnimeNoPainel() {
       case 'mais': mudarEpisodios(id, 1); break;
       case 'menos': mudarEpisodios(id, -1); break;
       case 'digitar': digitarEpisodios(b, id); break;
+      case 'grade':
+        if (gradesAbertas.has(id)) gradesAbertas.delete(id); else gradesAbertas.add(id);
+        renderPainel();
+        break;
+      case 'grade-da-vez':
+        temporadaEscolhida.set(id, t);
+        gradesAbertas.add(id);
+        renderPainel();
+        break;
+      case 'ep': alternarEp(id, t, Number(b.dataset.n)); break;
       case 'stremio': abrirStremio(id, { stremio: true }); break;
       case 'temporada':
         if (t === null) temporadaEscolhida.delete(id); else temporadaEscolhida.set(id, t);
@@ -507,12 +608,12 @@ document.addEventListener('click', (e) => {
 // O "+1" dos cartões da lista do PC, no lugar do atalho do Letterboxd.
 function acaoEpisodioHTML(f) {
   if (!ehSerie(f) || !nandrollLigado() || f.status === 'completo') return '';
-  return `<button class="acao acao-ep" data-ep-mais="${f.id}" title="Vi o episódio ${proximoParaVer(f)}" aria-label="Marcar o episódio ${proximoParaVer(f)} como visto">+1</button>`;
+  return `<button class="acao acao-ep" data-ep-mais="${f.id}" title="Vi ${textoDaVez(f)}" aria-label="Marcar ${textoDaVez(f)} como visto">+1</button>`;
 }
 
 // O que muda num cartão de série sem recriá-lo: o selo da capa e o "+1"
 // (recriar tiraria da página o botão que acabou de ser clicado).
-const estadoCartaoAnime = (f) => (ehSerie(f) ? `${nandrollLigado()}|${f.status}|${seloSerieTexto(f)}|${proximoParaVer(f)}` : '');
+const estadoCartaoAnime = (f) => (ehSerie(f) ? `${nandrollLigado()}|${f.status}|${seloSerieTexto(f)}|${rotuloDaVez(f)}` : '');
 function atualizarCartaoAnime(el, f) {
   if (!ehSerie(f)) return;
   for (const capa of $$('.capa', el)) {
@@ -523,7 +624,7 @@ function atualizarCartaoAnime(el, f) {
   if (!acoes) return;
   const velho = $('.acao-ep', acoes);
   const html = acaoEpisodioHTML(f);
-  if (velho && html) { velho.title = `Vi o episódio ${proximoParaVer(f)}`; velho.setAttribute('aria-label', `Marcar o episódio ${proximoParaVer(f)} como visto`); }
+  if (velho && html) { velho.title = `Vi ${textoDaVez(f)}`; velho.setAttribute('aria-label', `Marcar ${textoDaVez(f)} como visto`); }
   else if (velho) velho.remove();
   else if (html) acoes.insertAdjacentHTML('beforeend', html);
 }
@@ -542,7 +643,7 @@ function cartaoContinuarHTML(f, capa) {
   const novos = episodiosNovos(f);
   return `<div class="cel-continuar">
     ${capa}
-    <button class="cel-ep-mais${novos ? ' novo' : ''}" data-ep-mais="${f.id}" aria-label="Marcar o episódio ${proximoParaVer(f)} de ${esc(f.titulo)} como visto">${icone('Plus')} Ep. ${proximoParaVer(f)}</button>
+    <button class="cel-ep-mais${novos ? ' novo' : ''}" data-ep-mais="${f.id}" aria-label="Marcar ${textoDaVez(f)} de ${esc(f.titulo)} como visto">${icone('Plus')} ${rotuloDaVez(f)}</button>
   </div>`;
 }
 
@@ -589,7 +690,7 @@ function agendaHTML() {
   return `
     ${novos.length ? `<h3 class="agenda-dia agenda-dia-novos">${icone('Sparkles')} Já saiu</h3>
     <ul class="agenda-lista">${novos.map((f) => itemAgendaHTML(f,
-      `<button class="btn btn-laranja agenda-mais" data-ep-mais="${f.id}">${icone('Plus')} Ep. ${proximoParaVer(f)}</button>`,
+      `<button class="btn btn-laranja agenda-mais" data-ep-mais="${f.id}">${icone('Plus')} ${rotuloDaVez(f)}</button>`,
       `${episodiosNovos(f) === 1 ? '1 episódio novo' : `${episodiosNovos(f)} episódios novos`}${plataforma(f)}`)).join('')}</ul>` : ''}
     ${[...grupos].map(([dia, lista]) => `<h3 class="agenda-dia">${esc(dia)}</h3>
     <ul class="agenda-lista">${lista.map((f) => itemAgendaHTML(f, `<span class="agenda-hora">${hora(f)}</span>`, `Episódio ${f.proximoEpisodio.numero}${plataforma(f)}`)).join('')}</ul>`).join('')}`;

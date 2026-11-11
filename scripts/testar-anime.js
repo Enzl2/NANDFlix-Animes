@@ -2,7 +2,8 @@
 // precisar de internet: a AniList é simulada com uma resposta de exemplo.
 const assert = require('assert');
 const test = require('node:test');
-const { novoFilme, mesmoFilme, progressoSerie, statusSerie, comDia, vistoSerie, ehSerie, passoSerie, totalTemporadas, definirSerie } = require('../lib/filmes');
+
+const { novoFilme, mesmoFilme, progressoSerie, statusSerie, comDia, vistoSerie, ehSerie, passoSerie, totalTemporadas, definirSerie, alternarEpisodio, marcadosDe } = require('../lib/filmes');
 const anilist = require('../lib/anilist');
 
 const serie = (dados = {}) => novoFilme({ tipo: 'serie', anime: true, anilistId: 1, episodios: 12, episodiosVistos: 0, status: 'planejo', ...dados });
@@ -265,10 +266,10 @@ function simularRede() {
   return pedidos;
 }
 
-test('anilist.temporadas: de qualquer temporada, acha todas em ordem (sem o filme nem o curta anterior)', async () => {
+test('anilist.temporadas: de qualquer temporada, acha todas em ordem, com o filme no meio (sem o curta anterior)', async () => {
   const pedidos = simularRede();
   const ts = await anilist.temporadas(13);
-  assert.deepStrictEqual(ts.map((t) => t.anilistId), [11, 13, 14]);
+  assert.deepStrictEqual(ts.map((t) => t.anilistId), [11, 12, 13, 14]);
   assert.strictEqual(new Set(pedidos).size, pedidos.length, 'cada entrada é pedida uma vez');
 });
 test('anilist.camposSerie: um item só, com a soma e o progresso preservado', async () => {
@@ -277,14 +278,14 @@ test('anilist.camposSerie: um item só, com a soma e o progresso preservado', as
   const m = anilist.camposSerie(ts, serie({ titulo: 'Série Season 2', ano: '2023', anilistId: 13 }), { novo: true });
   assert.strictEqual(m.titulo, 'Série');
   assert.strictEqual(m.anilistId, 11);
-  assert.strictEqual(m.episodios, 22);
+  assert.strictEqual(m.episodios, 23, '12 + o filme + 10');
   assert.strictEqual(m.exibicao, 'em exibição');
-  assert.deepStrictEqual(m.temporadas.map((t) => [t.titulo, t.episodios, t.vistos]), [['Série', 12, 0], ['Série Season 2', 10, 0], ['Shirizu 3rd Season', 0, 0]]);
+  assert.deepStrictEqual(m.temporadas.map((t) => [t.titulo, t.episodios, t.vistos]), [['Série', 12, 0], ['Série: O Filme', 1, 0], ['Série Season 2', 10, 0], ['Shirizu 3rd Season', 0, 0]]);
   // atualizar depois não perde o que a pessoa já viu
-  const visto = { ...serie(), ...m, temporadas: m.temporadas.map((t, i) => ({ ...t, vistos: [12, 4, 0][i] })) };
+  const visto = { ...serie(), ...m, temporadas: m.temporadas.map((t, i) => ({ ...t, vistos: [12, 1, 4, 0][i] })) };
   const de_novo = anilist.camposSerie(ts, visto);
-  assert.deepStrictEqual(de_novo.temporadas.map((t) => t.vistos), [12, 4, 0]);
-  assert.strictEqual(de_novo.episodiosVistos, 16);
+  assert.deepStrictEqual(de_novo.temporadas.map((t) => t.vistos), [12, 1, 4, 0]);
+  assert.strictEqual(de_novo.episodiosVistos, 17);
   assert.ok(!('titulo' in de_novo));
 });
 
@@ -352,7 +353,59 @@ test('importar: ao completar pela AniList, "completa" só vale com todas as temp
   const { series } = anilist.agruparLista([entrada(11, { status: 'completo', vistos: 12, completoEm: '2022-01-01' }, { title: { english: 'Série' } })]);
   const m = anilist.camposSerie(ts, { ...serie(), ...series[0] });
   assert.strictEqual(m.anilistPendente, false);
-  assert.deepStrictEqual(m.temporadas.map((t) => t.vistos), [12, 0, 0]);
+  assert.deepStrictEqual(m.temporadas.map((t) => t.vistos), [12, 0, 0, 0]);
   assert.strictEqual(m.status, 'assistindo');
   assert.strictEqual(m.visto, false);
+});
+
+// ---- Episódios avulsos e filmes na ordem ----
+
+test('avulso: marcar o 7 sem ter visto o 5 guarda a lista; +1 preenche o primeiro que falta', () => {
+  let f = comTemporadas([T({ episodios: 12, vistos: 4 })]);
+  f = { ...f, ...alternarEpisodio(f, 0, 7) };
+  assert.deepStrictEqual(f.temporadas[0].lista, [1, 2, 3, 4, 7]);
+  assert.strictEqual(f.temporadas[0].vistos, 5);
+  assert.strictEqual(f.episodiosVistos, 5);
+  f = { ...f, ...passoSerie(f, 1, 0) };
+  assert.deepStrictEqual(marcadosDe(f.temporadas[0]), [1, 2, 3, 4, 5, 7]);
+  f = { ...f, ...passoSerie(f, 1, 0) };
+  assert.ok(!('lista' in f.temporadas[0]), 'em sequência de novo, a lista some');
+  assert.strictEqual(f.temporadas[0].vistos, 7);
+  f = { ...f, ...passoSerie(f, -1, 0) };
+  assert.strictEqual(f.temporadas[0].vistos, 6);
+  f = { ...f, ...alternarEpisodio(f, 0, 3) };
+  assert.deepStrictEqual(f.temporadas[0].lista, [1, 2, 4, 5, 6]);
+  assert.deepStrictEqual(alternarEpisodio(f, 0, 13), {}, 'não passa do total');
+});
+test('avulso: digitar um número ou completar volta para a sequência', () => {
+  const f = comTemporadas([T({ episodios: 12, vistos: 2, lista: [3, 9] })]);
+  assert.ok(!('lista' in definirSerie(f, 5).temporadas[0]));
+  assert.ok(!('lista' in statusSerie(f, 'completo').temporadas[0]));
+});
+test('filme na ordem: o +1 da série passa pelo filme entre as temporadas', () => {
+  let f = comTemporadas([T({ episodios: 2 }), T({ anilistId: 2, formato: 'MOVIE', episodios: 1 }), T({ anilistId: 3, episodios: 2 })]);
+  for (let i = 0; i < 3; i++) f = { ...f, ...passoSerie(f, 1) };
+  assert.deepStrictEqual(f.temporadas.map((t) => t.vistos), [2, 1, 0]);
+});
+test('repetidos: o filme de uma série na lista ainda pode entrar como filme sozinho', () => {
+  const naLista = { anilistId: 1, tipo: 'serie', temporadas: [{ anilistId: 1 }, { anilistId: 50, formato: 'MOVIE' }] };
+  assert.ok(!mesmoFilme(naLista, { anilistId: 50, titulo: 'O Filme' }));
+});
+test('temporada anunciada sem formato na AniList entra na série', async () => {
+  const rede = {
+    1: { ...MIDIA, id: 1, status: 'FINISHED', nextAiringEpisode: null, relations: { edges: [{ relationType: 'SEQUEL', node: { id: 2, type: 'ANIME', format: 'MOVIE' } }] } },
+    2: { ...MIDIA, id: 2, format: 'MOVIE', episodes: 1, relations: { edges: [{ relationType: 'PREQUEL', node: { id: 1, type: 'ANIME', format: 'TV' } }, { relationType: 'SEQUEL', node: { id: 3, type: 'ANIME', format: null } }] } },
+    3: { ...MIDIA, id: 3, format: null, status: 'NOT_YET_RELEASED', episodes: null, nextAiringEpisode: null, relations: { edges: [{ relationType: 'PREQUEL', node: { id: 2, type: 'ANIME', format: 'MOVIE' } }] } },
+  };
+  global.fetch = async (_u, o) => ({ status: 200, ok: true, headers: { get: () => null }, json: async () => ({ data: { Media: rede[JSON.parse(o.body).variables.id] || null } }) });
+  const de3 = await anilist.temporadas(3);
+  assert.deepStrictEqual(de3.map((t) => t.anilistId), [1, 2, 3]);
+});
+test('importar: o filme ligado à série entra na série, na ordem', () => {
+  const { series, filmes } = anilist.agruparLista([
+    entrada(1, { status: 'completo', vistos: 12 }, { relations: { edges: [liga('SEQUEL', 50, 'MOVIE')] } }),
+    entrada(50, { status: 'completo', vistos: 1 }, { format: 'MOVIE', episodes: 1, seasonYear: 2021, relations: { edges: [liga('PREQUEL', 1)] } }),
+  ]);
+  assert.strictEqual(filmes.length, 0);
+  assert.deepStrictEqual(series[0].temporadas.map((t) => [t.anilistId, t.vistos]), [[1, 12], [50, 1]]);
 });

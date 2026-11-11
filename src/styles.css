@@ -2854,3 +2854,16 @@ button.serie-conta:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--an
 .cel-capa .selo-serie { left: 6px; bottom: 6px; }
 .cel-continuar { scroll-snap-align: start; }
 .nandroll-opcoes { flex-direction: column; align-items: flex-start; gap: 10px; }
+
+/* NANDRoll — grade de episódios e filmes na ordem */
+.serie-grade-abrir { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; font-size: 13px; }
+.serie-grade-abrir .ico { width: 15px; height: 15px; }
+.serie-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; max-height: 232px; overflow-y: auto; padding: 2px; }
+.serie-grade .ep { min-height: 44px; border-radius: 10px; border: 1px solid var(--divisor); background: transparent; color: var(--texto-2); font: 600 14px/1 var(--ui); font-variant-numeric: tabular-nums; cursor: pointer; transition: background .15s ease-out, border-color .15s ease-out, color .15s ease-out; }
+.serie-grade .ep:hover { border-color: var(--borda-controle); color: var(--texto); }
+.serie-grade .ep:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel-foco); }
+.serie-grade .ep.visto { background: var(--gradiente-acento); border-color: transparent; color: #fff; }
+.serie-grade .ep.futuro { border-style: dashed; opacity: .45; cursor: default; }
+.chip-temporada .ico { margin-right: 2px; }
+span.serie-conta { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; color: var(--texto); }
+span.serie-conta .ico { width: 16px; height: 16px; }

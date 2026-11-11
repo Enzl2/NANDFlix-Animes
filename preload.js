@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('api', {
   progressoSerie: chamar('serie:progresso'),
   statusSerie: chamar('serie:status'),
   definirSerie: chamar('serie:definir'),
+  episodioSerie: chamar('serie:episodio'),
   importarAnilist: chamar('anilist:importar'),
   abrirPlataforma: chamar('abrir:plataforma'),
   abrirAnilist: chamar('abrir:anilist'),

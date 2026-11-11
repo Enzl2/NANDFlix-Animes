@@ -11,7 +11,7 @@ const omdb = require('./lib/omdb');
 const trailer = require('./lib/trailer');
 const tmdb = require('./lib/tmdb');
 const anilist = require('./lib/anilist');
-const { novoFilme, juntar, resumo, acharRepetido, mesmoFilme, ehSerie, passoSerie, definirSerie, statusSerie, comDia, vistoSerie } = require('./lib/filmes');
+const { novoFilme, juntar, resumo, acharRepetido, mesmoFilme, ehSerie, passoSerie, definirSerie, alternarEpisodio, statusSerie, comDia, vistoSerie } = require('./lib/filmes');
 const letterboxd = require('./lib/letterboxd');
 const { Marcas } = require('./lib/marcas');
 const { Nuvem } = require('./lib/nuvem');
@@ -736,6 +736,12 @@ ipcMain.handle('serie:definir', (_e, id, n, dia, temporada) => {
   const f = filmes.find((x) => x.id === id);
   if (!ehSerie(f)) return null;
   return atualizarFilme(id, comDia(f, definirSerie(f, n, Number.isInteger(temporada) ? temporada : null), dia));
+});
+// Marcar ou desmarcar um episódio avulso (a grade de episódios).
+ipcMain.handle('serie:episodio', (_e, id, temporada, n, dia) => {
+  const f = filmes.find((x) => x.id === id);
+  if (!ehSerie(f)) return null;
+  return atualizarFilme(id, comDia(f, alternarEpisodio(f, Number(temporada), n), dia));
 });
 ipcMain.handle('anilist:importar', (_e, nome) => chamar(() => importarAnilist(nome)));
 ipcMain.handle('serie:status', (_e, id, status, dia) => {
