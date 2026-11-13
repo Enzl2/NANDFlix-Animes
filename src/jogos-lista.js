@@ -158,12 +158,12 @@ function jogoNaLista(r) {
 function textosBuscaAdicionar(fonte = fonteAtual()) {
   const hub = plataformaAtual().hub;
   if (fonte === 'jogo') {
-    return { placeholder: 'Digite o nome do jogo e tecle Enter', dica: hub ? 'Busque e clique no resultado certo. Filmes vêm do TMDB; animes, da AniList; jogos, da IGDB.' : 'Busque o jogo na IGDB e clique no resultado certo.' };
+    return { placeholder: 'Nome do jogo', dica: hub ? 'Filmes vêm do TMDB; animes, da AniList; jogos, da IGDB.' : 'Jogos da IGDB.' };
   }
   if (fonte === 'anime') {
-    return { placeholder: 'Digite o nome do anime e tecle Enter', dica: hub ? 'Busque e clique no resultado certo. Filmes vêm do TMDB; animes, da AniList.' : 'Busque o anime na AniList e clique no resultado certo.' };
+    return { placeholder: 'Nome do anime', dica: hub ? 'Filmes vêm do TMDB; animes, da AniList.' : 'Animes da AniList.' };
   }
-  return { placeholder: 'Digite o título e tecle Enter', dica: hub ? 'Busque e clique no resultado certo. Filmes vêm do TMDB; animes, da AniList.' : 'Busque o filme no TMDB e clique no resultado certo.' };
+  return { placeholder: 'Título do filme', dica: hub ? 'Filmes vêm do TMDB; animes, da AniList.' : 'Filmes do TMDB.' };
 }
 
 function resultadosJogosHTML(itens) {

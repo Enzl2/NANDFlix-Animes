@@ -41,11 +41,6 @@ function abrirPaleta(termo = '') {
         <kbd>Esc</kbd>
       </div>
       <div class="paleta-lista" id="paleta-lista" role="listbox"></div>
-      <footer class="paleta-rodape">
-        <span><kbd>↑</kbd><kbd>↓</kbd> escolher</span>
-        <span><kbd>Enter</kbd> abrir</span>
-        <span><kbd>Shift</kbd><kbd>Enter</kbd> watchlist de hoje / adicionar</span>
-      </footer>
     </div>`;
   document.body.append(el);
   paleta = { el, itens: [], sel: 0, termo: '', geracaoTmdb: 0, externo: null, timer: null };

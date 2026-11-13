@@ -1,0 +1,269 @@
+/* ==========================================================================
+   Visual novo, lote 1: a escolha da plataforma ("Qual sessão hoje?").
+   Cada plataforma é um objeto: nandflix = ingresso, nandchan = volume de
+   mangá, nandplay = cartucho; o nandhub é a faixa com as listras das cores.
+   As regras globais (botões, chips, capas, ícones) ficam em styles.css.
+   ========================================================================== */
+
+/* ---------- Marca: "nand" fino + a plataforma em letreiro ---------- */
+.plat-marca { display: inline-flex; align-items: baseline; gap: 1px; font-size: 32px; line-height: 1; letter-spacing: -.01em; white-space: nowrap; }
+.plat-marca-nand { font-weight: 400; color: var(--texto-2); font-size: .78em; letter-spacing: .02em; }
+.plat-marca-suf { font-weight: 800; font-size: 1.12em; letter-spacing: .01em; text-transform: lowercase; color: var(--sala-cor, #9F6BFF); }
+.plat-marca-tri i { font-style: normal; }
+.plat-marca-tri i:nth-child(3n + 1) { color: #9F6BFF; }
+.plat-marca-tri i:nth-child(3n + 2) { color: #FF7A2E; }
+.plat-marca-tri i:nth-child(3n + 3) { color: #35E58E; }
+.plat-tela .entrada-marca.plat-marca-topo { display: flex; justify-content: center; margin: 0 0 22px; font: inherit; text-shadow: none; }
+.plat-marca-topo .plat-marca { font-size: 30px; }
+
+/* ---------- Fundo: capas boiando, inclinadas ---------- */
+.plat-tela { background: #07060A; }
+.plat-mosaico {
+  position: absolute; inset: -10%; display: grid; grid-template-columns: repeat(10, 1fr); gap: 14px; pointer-events: none;
+  transform: rotate(-8deg) scale(1.15); opacity: .62; filter: saturate(.9);
+  animation: plat-deriva 60s linear infinite alternate;
+}
+.plat-mosaico img { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: var(--superficie); animation: plat-boia 7s ease-in-out infinite alternate; animation-delay: calc(var(--d) * -1s); }
+@keyframes plat-boia { from { transform: translateY(-10px); } to { transform: translateY(10px); } }
+@keyframes plat-deriva { to { transform: rotate(-8deg) scale(1.15) translateY(-6%); } }
+.plat-tela .entrada-veu {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 45%, rgba(7, 6, 10, .55), rgba(7, 6, 10, .84) 80%),
+    linear-gradient(180deg, rgba(7, 6, 10, .2), rgba(7, 6, 10, .65));
+}
+
+/* ---------- A tela no passo "escolher": sem cartão, os objetos soltos ---------- */
+.plat-tela.plat-modo-escolha .plat-cartao {
+  width: min(1180px, 100%); max-height: 100vh; padding: 24px 40px 40px;
+  background: none; box-shadow: none; backdrop-filter: none; border-radius: 0;
+}
+.plat-tela.plat-modo-escolha { padding: 0; }
+.plat-escolha { align-items: center; }
+.plat-escolha .plat-pergunta { margin: 0 0 30px; font: 700 40px/1.1 var(--display); letter-spacing: -.02em; text-align: center; }
+.plat-salas {
+  --n: 3; --sala-alt: clamp(230px, 38vh, 320px);
+  display: grid; grid-template-columns: repeat(var(--n), minmax(0, 340px)); justify-content: center; gap: 26px;
+  width: 100%; text-align: left;
+}
+.plat-hub-faixa { width: min(100%, calc(var(--n-hub, 3) * 340px + (var(--n-hub, 3) - 1) * 26px)); }
+.plat-salas:has(> :nth-child(2):last-child) + .plat-hub-faixa { --n-hub: 2; }
+.plat-salas:has(> :nth-child(4)) + .plat-hub-faixa { --n-hub: 4; }
+
+/* O botão é só a área de clique; o objeto de dentro é que levanta (a cascata de entrada anima o botão). */
+.plat-sala {
+  position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; color: var(--texto);
+  font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.plat-sala:focus-visible { outline: 2px solid var(--sala-cor, var(--anel-foco)); outline-offset: 6px; border-radius: 10px; }
+.plat-sala > div:first-child { transition: transform .35s var(--saida), filter .35s, opacity .35s; }
+@media (hover: hover) {
+  .plat-sala:hover > div:first-child { transform: translateY(-10px); filter: drop-shadow(0 18px 24px rgba(0, 0, 0, .55)); }
+}
+.plat-desc { display: block; margin: 6px 0 0; color: var(--texto-2); font-size: 13.5px; line-height: 1.45; }
+.plat-conta { display: block; margin-top: 14px; font-size: 13px; color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.plat-conta b { font-size: 24px; font-weight: 700; color: var(--texto); margin-right: 2px; }
+
+/* ---------- nandflix: ingresso, com o canhoto picotado à direita ---------- */
+/* As duas partes têm o recorte próprio, para o canhoto poder ser arrancado. */
+.plat-ingresso { display: grid; grid-template-columns: 1fr 84px; height: var(--sala-alt); }
+.plat-ingresso > * { background: #16141B; }
+.plat-ingresso-corpo {
+  position: relative; padding: 20px 22px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; isolation: isolate;
+  border-radius: 8px 0 0 8px;
+  -webkit-mask: radial-gradient(circle 12px at 100% 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 12px at 100% 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+  mask: radial-gradient(circle 12px at 100% 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 12px at 100% 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+}
+.plat-ingresso-corpo::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--sala-foto, none) 40% 30% / cover; }
+.plat-ingresso-corpo::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #16141B 22%, rgba(22, 20, 27, 0) 70%); }
+.plat-canhoto {
+  display: flex; align-items: center; justify-content: center; color: #CDB4FF;
+  border-left: 2px dashed rgba(255, 255, 255, .18); border-radius: 0 8px 8px 0;
+  -webkit-mask: radial-gradient(circle 12px at 0 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 12px at 0 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+  mask: radial-gradient(circle 12px at 0 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 12px at 0 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+}
+/* "Admite um" é texto do próprio ingresso (a exceção à regra da caixa alta). */
+.plat-canhoto span { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 11px/1 var(--ui); letter-spacing: .2em; text-transform: uppercase; opacity: .75; white-space: nowrap; }
+
+/* ---------- nandchan: tankōbon, com a lombada laranja à esquerda ---------- */
+.plat-volume { display: grid; grid-template-columns: 44px 1fr; height: var(--sala-alt); border-radius: 3px 8px 8px 3px; }
+.plat-lombada {
+  position: relative; z-index: 2; border-radius: 3px 0 0 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 18px 0 14px;
+  background: var(--sala-cor); color: #1E0F07; box-shadow: inset -6px 0 10px rgba(0, 0, 0, .25);
+}
+.plat-lombada-nome { writing-mode: vertical-rl; font-weight: 800; font-size: 15px; letter-spacing: .02em; }
+.plat-lombada-kana { writing-mode: vertical-rl; font: 700 12px 'Yu Gothic', 'Meiryo', sans-serif; letter-spacing: .3em; }
+.plat-capa-vol, .plat-miolo { grid-row: 1; grid-column: 2; border-radius: 0 8px 8px 0; }
+.plat-capa-vol {
+  position: relative; z-index: 1; overflow: hidden; isolation: isolate; background: #1E0F07;
+  padding: 20px 22px; display: flex; flex-direction: column; justify-content: flex-end;
+  transform-origin: left center; backface-visibility: hidden;
+}
+.plat-capa-vol::before { content: ''; position: absolute; inset: 0; z-index: -2; background: var(--sala-foto, none) center 20% / cover; }
+.plat-capa-vol::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(circle, rgba(255, 122, 46, .12) 1px, transparent 1.4px) 0 0 / 7px 7px, linear-gradient(0deg, #1E0F07 26%, rgba(30, 15, 7, 0) 70%);
+}
+/* O miolo: uma página de mangá, que aparece quando a capa abre. */
+.plat-miolo {
+  background: #F1ECE3; padding: 14px; display: grid; grid-template: 1.1fr .9fr 1fr / 1.2fr 1fr; gap: 7px;
+  box-shadow: inset 10px 0 18px -8px rgba(0, 0, 0, .35);
+}
+.plat-miolo i { border: 2.5px solid #141414; background: var(--sala-foto, #888) var(--x, 50%) var(--y, 30%) / 220% auto; filter: grayscale(1) contrast(1.25); }
+.plat-miolo i:first-child { grid-column: 1 / 3; }
+
+/* ---------- nandplay: cartucho (aba de encaixe em cima, ranhuras, etiqueta) ---------- */
+.plat-cartucho {
+  height: var(--sala-alt); padding: 20px 22px 0; display: flex; flex-direction: column;
+  background: #1B1F1D; border-radius: 0 0 14px 14px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
+  clip-path: polygon(0 18px, 18px 0, 38% 0, 38% 10px, 62% 10px, 62% 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+.plat-ranhuras { flex: none; height: 14px; margin: 0 22% 12px; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, .45) 0 3px, transparent 3px 7px); }
+/* A etiqueta tem cantos arredondados, como as de verdade. */
+.plat-etiqueta {
+  flex: 1; position: relative; min-height: 0; border-radius: 12px; overflow: hidden; isolation: isolate;
+  padding: 16px 18px 12px; display: flex; flex-direction: column; justify-content: flex-end;
+  background: #07170F; box-shadow: 0 0 0 4px #252B28;
+}
+.plat-etiqueta::before { content: ''; position: absolute; inset: 0 0 34% 0; z-index: -2; border-radius: 12px 12px 0 0; background: var(--sala-foto, none) 62% 30% / cover; }
+.plat-etiqueta::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, .25) 0 1px, transparent 1px 3px), linear-gradient(0deg, #07170F 36%, rgba(7, 23, 15, 0) 70%);
+}
+.plat-pe { flex: none; height: 12px; display: flex; align-items: center; justify-content: flex-end; padding: 0 2px; }
+.plat-pe i { display: block; width: 46%; height: 8px; background: repeating-linear-gradient(90deg, #C9A24A 0 4px, transparent 4px 7px); opacity: .7; }
+/* O console onde o cartucho encaixa: só aparece no clique. */
+.plat-console {
+  position: absolute; left: -18px; right: -18px; bottom: -100px; height: 132px; z-index: 3; border-radius: 12px; pointer-events: none;
+  opacity: 0; transform: translateY(40px);
+  background: linear-gradient(180deg, #252C28, #131714 60%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 24px 40px rgba(0, 0, 0, .6);
+}
+.plat-console::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 12px; border-radius: 0 0 4px 4px; background: #050605; }
+.plat-console span { position: absolute; left: 22px; top: 26px; font: 700 12px var(--ui); color: #6E7C74; }
+.plat-console i { position: absolute; right: 22px; top: 30px; width: 10px; height: 10px; border-radius: 50%; background: #2B332E; }
+
+/* ---------- nandhub: faixa larga, listras das cores e o brilho delas ---------- */
+.plat-hub-faixa { margin-top: 30px; }
+.plat-hub-faixa:empty { display: none; }
+.plat-sala-hub {
+  display: flex; align-items: center; gap: 28px; padding: 24px 30px 24px 44px; border-radius: 10px; overflow: hidden;
+  background: #121019; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), var(--brilho);
+  transition: transform .35s var(--saida), opacity .35s;
+}
+.plat-sala-hub::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: var(--listras); transition: width .45s var(--saida); }
+.plat-sala-hub > * { position: relative; }
+@media (hover: hover) { .plat-sala-hub:hover { transform: translateY(-6px); } }
+.plat-hub-texto { display: flex; flex-direction: column; align-items: flex-start; }
+.plat-hub-texto .plat-marca { font-size: 40px; }
+.plat-hub-texto .plat-desc { margin-top: 4px; }
+.plat-fila { margin-left: auto; display: flex; padding-left: 14px; }
+.plat-fila img { width: 58px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 4px; margin-left: -14px; background: var(--superficie); box-shadow: -6px 0 16px rgba(0, 0, 0, .55); }
+/* No hover as capas ficam boiando, cada uma no seu tempo. */
+.plat-sala-hub:hover .plat-fila img { animation: plat-boia-hub 1.8s ease-in-out infinite alternate; }
+.plat-sala-hub:hover .plat-fila img:nth-child(2n) { animation-delay: -.9s; }
+.plat-sala-hub:hover .plat-fila img:nth-child(3n) { animation-delay: -.45s; }
+.plat-sala-hub:hover .plat-fila img:nth-child(5n) { animation-delay: -1.3s; }
+@keyframes plat-boia-hub { from { transform: translateY(-8px); } to { transform: translateY(8px); } }
+.plat-conta-hub { margin: 0 0 0 18px; text-align: right; }
+.plat-conta-hub b { display: block; margin: 0; }
+.plat-sala-hub .plat-fila + .plat-conta-hub, .plat-sala-hub .plat-hub-texto + .plat-conta-hub { flex: none; }
+.plat-sala-hub .plat-hub-texto + .plat-conta-hub { margin-left: auto; }
+
+.plat-escolha .plat-sempre { margin-top: 18px; gap: 10px; font-size: 13.5px; }
+.plat-escolha .plat-sempre input { accent-color: #9F6BFF; }
+
+/* ---------- Ao escolher: cada objeto anima antes de entrar ---------- */
+.plat-tela.escolhendo .plat-sala:not(.escolhido) > div:first-child,
+.plat-tela.escolhendo .plat-sala-hub:not(.escolhido),
+.plat-tela.escolhendo .plat-sempre,
+.plat-tela.escolhendo .plat-pergunta { opacity: .2; transition: opacity .35s; }
+.plat-tela.escolhendo .plat-sala { pointer-events: none; }
+.plat-sala.escolhido { z-index: 10; }
+.plat-sala.escolhido > div:first-child { transform: none; filter: none; }
+/* ingresso: o canhoto é arrancado no picote */
+.escolhido .plat-canhoto { transform-origin: 0 0; animation: plat-rasga 1.05s .12s cubic-bezier(.5, 0, .75, 0) forwards; }
+.escolhido .plat-ingresso-corpo { animation: plat-puxao .3s .1s ease-out; }
+@keyframes plat-rasga { 0% { transform: none; } 14% { transform: translate(4px, -3px) rotate(-3deg); } 26% { transform: translate(8px, 2px) rotate(5deg); } 100% { transform: translate(110px, 340px) rotate(42deg); opacity: 0; } }
+@keyframes plat-puxao { 40% { transform: translateX(-5px) rotate(-.6deg); } }
+/* volume: a capa abre e mostra a página */
+.escolhido .plat-capa-vol { animation: plat-abre-vol 1.05s .08s cubic-bezier(.55, 0, .25, 1) forwards; }
+@keyframes plat-abre-vol { 0% { transform: perspective(1400px) rotateY(0); filter: brightness(1); } 100% { transform: perspective(1400px) rotateY(-178deg); filter: brightness(.4); } }
+/* cartucho: o console sobe, o cartucho encaixa e a luz acende */
+.escolhido .plat-console { animation: plat-console-entra .4s var(--saida) forwards; }
+.escolhido .plat-cartucho { animation: plat-encaixa 1.15s .25s forwards; }
+.escolhido .plat-console i { animation: plat-led .2s 1.05s forwards; }
+@keyframes plat-console-entra { to { opacity: 1; transform: none; } }
+@keyframes plat-encaixa {
+  0% { transform: none; animation-timing-function: var(--saida); }
+  30% { transform: translateY(-28px); animation-timing-function: cubic-bezier(.6, 0, .9, .4); }
+  62% { transform: translateY(96px); animation-timing-function: ease-out; }
+  70% { transform: translateY(89px); }
+  78%, 100% { transform: translateY(96px); }
+}
+@keyframes plat-led { to { background: #35E58E; box-shadow: 0 0 12px #35E58E; } }
+/* hub: as listras tomam a faixa */
+.plat-sala-hub.escolhido::before { width: 100%; }
+
+/* A cortina: escurece (ingresso, volume), liga a TV de tubo (cartucho) ou desce em listras (hub). */
+.plat-cortina { position: fixed; inset: 0; z-index: 1100; pointer-events: none; display: flex; }
+.plat-cortina::before { content: ''; position: absolute; inset: 0; background: #050407; opacity: 0; transition: opacity .55s; }
+.plat-cortina.c-volume::before { background: #120804; }
+.plat-cortina.on:not(.c-hub)::before { opacity: 1; transition: opacity .45s; }
+.plat-cortina i { flex: 1; transform: translateY(-101%); }
+.plat-cortina.on i, .plat-cortina.sai i { transition: transform .5s cubic-bezier(.7, 0, .2, 1); }
+.plat-cortina.on i:nth-child(2), .plat-cortina.sai i:nth-child(2) { transition-delay: .07s; }
+.plat-cortina.on i:nth-child(3), .plat-cortina.sai i:nth-child(3) { transition-delay: .14s; }
+.plat-cortina.c-hub.on i { transform: none; }
+.plat-cortina.c-hub.sai i { transform: translateY(101%); }
+.plat-cortina:not(.c-hub) i { display: none; }
+.plat-cortina.c-cartucho::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px;
+  background: #E6FFF1; box-shadow: 0 0 24px #35E58E; transform: scaleX(0); opacity: 0;
+}
+.plat-cortina.c-cartucho.on::after { animation: plat-tv-liga .75s .2s forwards; }
+@keyframes plat-tv-liga { 0% { transform: scaleX(0); opacity: 1; } 45% { transform: scaleX(1) scaleY(1); opacity: 1; } 100% { transform: scaleX(1) scaleY(320); opacity: 0; } }
+
+/* ---------- Telas menores ---------- */
+@media (max-height: 760px) {
+  .plat-escolha .plat-pergunta { font-size: 32px; margin-bottom: 22px; }
+  .plat-tela .entrada-marca.plat-marca-topo { margin-bottom: 12px; }
+  .plat-hub-faixa { margin-top: 22px; }
+  .plat-sala-hub { padding-top: 18px; padding-bottom: 18px; }
+}
+@media (max-width: 1000px) {
+  .plat-salas { gap: 18px; }
+  .plat-ingresso { grid-template-columns: 1fr 60px; }
+  .plat-fila img:nth-child(n + 5) { display: none; }
+}
+/* Estreita (celular): um objeto embaixo do outro, mais baixos, com a tela rolando. */
+@media (max-width: 760px) {
+  .plat-tela.plat-modo-escolha .plat-cartao { padding: 28px 18px 32px; overflow-x: hidden; }
+  .plat-escolha .plat-pergunta { font-size: 28px; margin-bottom: 20px; }
+  .plat-salas { --sala-alt: 196px; grid-template-columns: minmax(0, 420px); gap: 16px; }
+  .plat-hub-faixa { width: min(100%, 420px); margin-top: 18px; }
+  .plat-ingresso { grid-template-columns: 1fr 52px; }
+  .plat-canhoto span { font-size: 10px; }
+  .plat-volume { grid-template-columns: 36px 1fr; }
+  .plat-lombada-nome { font-size: 13px; }
+  .plat-cartucho { padding: 14px 16px 0; }
+  .plat-ranhuras { height: 10px; margin-bottom: 8px; }
+  .plat-etiqueta { padding: 12px 14px 10px; }
+  .plat-marca { font-size: 27px; }
+  .plat-desc { font-size: 12.5px; }
+  .plat-conta { margin-top: 8px; }
+  .plat-conta b { font-size: 20px; }
+  .plat-sala-hub { gap: 14px; padding: 18px 18px 18px 30px; }
+  .plat-hub-texto .plat-marca { font-size: 30px; }
+  .plat-fila { display: none; }
+  .plat-console { bottom: -80px; height: 110px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plat-mosaico, .plat-mosaico img, .plat-sala-hub:hover .plat-fila img { animation: none; }
+  .plat-sala > div:first-child, .plat-sala-hub { transition: none; }
+}
+@media (min-width: 761px) {
+  /* O console e o canhoto saem do objeto na animação: sem cortar nas bordas da tela. */
+  .plat-tela.escolhendo .plat-cartao { overflow: visible; }
+}
+.plat-escolha:focus { outline: none; }

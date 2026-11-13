@@ -420,6 +420,145 @@ function cartaoPlataformaHTML(p, { alternar = false, ligado = false } = {}) {
   </button>`;
 }
 
+// ---- Escolha de onde entrar: cada plataforma é um objeto ----
+// nandflix = ingresso (canhoto picotado), nandchan = volume de mangá (lombada),
+// nandplay = cartucho; o nandhub é a faixa larga com as listras das plataformas.
+// Ao escolher, o objeto anima (o canhoto é arrancado, a capa abre, o cartucho
+// encaixa no console, as listras cobrem a tela) e só então a plataforma entra.
+const ESCOLHA_OBJETO = { nandflix: 'ingresso', nandanimes: 'volume', nandplay: 'cartucho' };
+const ESCOLHA_COR = { roxo: '#9F6BFF', laranja: '#FF7A2E', verde: '#35E58E' };
+// [a cortina fecha, a plataforma entra por baixo dela] em ms, por objeto.
+const ESCOLHA_TEMPOS = { ingresso: [950, 1650], volume: [1000, 1700], cartucho: [1250, 2250], hub: [300, 1150] };
+
+const escolhaCor = (p) => ESCOLHA_COR[p.tema] || ESCOLHA_COR.roxo;
+const escolhaSrc = (f) => (f ? srcCapa(f) : '');
+const escolhaUrl = (src) => `url("${String(src).replace(/"/g, '%22')}")`;
+
+// "nand" fino + o resto em letreiro; o hub com uma letra na cor de cada plataforma.
+function escolhaMarcaHTML(p) {
+  const resto = p.nome.startsWith('nand') ? p.nome.slice(4) : p.nome;
+  const sufixo = p.hub
+    ? `<span class="plat-marca-suf plat-marca-tri">${[...resto].map((l) => `<i>${esc(l)}</i>`).join('')}</span>`
+    : `<span class="plat-marca-suf">${esc(resto)}</span>`;
+  return `<span class="plat-marca">${p.nome.startsWith('nand') ? '<span class="plat-marca-nand">nand</span>' : ''}${sufixo}</span>`;
+}
+
+// Os itens com capa, os favoritos e os de nota alta primeiro (são os que a pessoa reconhece).
+function escolhaItens(p) {
+  const peso = (f) => (f.favorito ? 2 : 0) + (Number(f.minhaNota) || 0) / 5;
+  return itensDaPlataforma(estado.filmes, p).filter((f) => escolhaSrc(f)).sort((a, b) => peso(b) - peso(a));
+}
+const escolhaSortear = (lista, entre = 12) => lista[Math.floor(Math.random() * Math.min(entre, lista.length))];
+
+// A foto do objeto: do filme, um shot que a pessoa guardou (cena nítida) ou a capa;
+// do jogo, a arte larga da Steam; do anime, a capa.
+function escolhaFoto(p) {
+  const itens = escolhaItens(p);
+  if (!itens.length) return '';
+  if (ESCOLHA_OBJETO[p.id] === 'ingresso') {
+    const comShot = itens.filter((f) => Array.isArray(f.shots) && f.shots.length);
+    if (comShot.length) return escolhaSortear(comShot).shots[0];
+  }
+  if (ESCOLHA_OBJETO[p.id] === 'cartucho') {
+    const comFundo = itens.filter((f) => f.fundo);
+    if (comFundo.length) return escolhaSortear(comFundo).fundo;
+  }
+  return escolhaSrc(escolhaSortear(itens));
+}
+
+// Capas de todas as plataformas, alternando, para o mosaico do fundo e a fila do hub.
+function escolhaCapasMistas(n) {
+  const filas = plataformasDisponiveis().filter((p) => !p.hub).map((p) => escolhaItens(p).sort(() => Math.random() - 0.5));
+  const saida = [];
+  for (let i = 0; saida.length < n && filas.some((f) => i < f.length); i++) {
+    for (const f of filas) if (f[i] && saida.length < n) saida.push(f[i]);
+  }
+  return saida;
+}
+
+// O fundo: capas inclinadas, cada uma boiando no seu tempo, e o mosaico todo derivando devagar.
+function escolhaMosaicoHTML() {
+  const capas = escolhaCapasMistas(28);
+  if (capas.length < 12) return '';
+  const tres = [...capas, ...capas, ...capas];
+  return `<div class="plat-mosaico" aria-hidden="true">${tres.map((f, i) => `<img src="${esc(escolhaSrc(f))}" alt="" loading="lazy" decoding="async" style="--d:${((i * 7) % 13) / 2}">`).join('')}</div>`;
+}
+
+function escolhaContaHTML(p) {
+  const n = itensDaPlataforma(estado.filmes, p).length;
+  return `<span class="plat-conta"><b>${n.toLocaleString('pt-BR')}</b> ${n === 1 ? p.rotulos.item : p.rotulos.itens}</span>`;
+}
+
+// Um objeto (o botão inteiro). O texto (marca, descrição, contador) fica sempre no mesmo lugar.
+function escolhaSalaHTML(p) {
+  const objeto = ESCOLHA_OBJETO[p.id] || 'ingresso';
+  const foto = escolhaFoto(p);
+  const estilo = `--sala-cor:${escolhaCor(p)};${foto ? `--sala-foto:${esc(escolhaUrl(foto))};` : ''}`;
+  const texto = `${escolhaMarcaHTML(p)}<p class="plat-desc">${esc(descricaoPlataforma(p))}</p>${escolhaContaHTML(p)}`;
+  let corpo;
+  if (objeto === 'volume') {
+    // O miolo é uma página de mangá (quadros em preto e branco da mesma imagem), que aparece quando a capa abre.
+    const quadros = [[40, 15], [20, 55], [85, 60], [60, 90], [10, 85]].map(([x, y]) => `<i style="--x:${x}%;--y:${y}%"></i>`).join('');
+    corpo = `<div class="plat-volume">
+        <div class="plat-lombada"><span class="plat-lombada-nome">${esc(p.nome)}</span><span class="plat-lombada-kana" lang="ja">アニメ</span></div>
+        <div class="plat-capa-vol">${texto}</div>
+        <div class="plat-miolo" aria-hidden="true">${quadros}</div>
+      </div>`;
+  } else if (objeto === 'cartucho') {
+    corpo = `<div class="plat-cartucho">
+        <div class="plat-ranhuras"></div>
+        <div class="plat-etiqueta">${texto}</div>
+        <div class="plat-pe"><i></i></div>
+      </div>
+      <div class="plat-console" aria-hidden="true"><span>${esc(p.nome)}</span><i></i></div>`;
+  } else {
+    corpo = `<div class="plat-ingresso">
+        <div class="plat-ingresso-corpo">${texto}</div>
+        <div class="plat-canhoto"><span>Admite um</span></div>
+      </div>`;
+  }
+  return `<button class="plat-sala plat-sala-${objeto}" data-plataforma="${p.id}" data-objeto="${objeto}" style="${estilo}" aria-label="${esc(`Entrar no ${p.nome}`)}">${corpo}</button>`;
+}
+
+// As cores das plataformas que o hub junta, em listras separadas (sem degradê entre elas).
+function escolhaListras(cores) {
+  const passo = 100 / cores.length;
+  return `linear-gradient(180deg, ${cores.map((c, i) => `${c} ${(i * passo).toFixed(1)}% ${((i + 1) * passo).toFixed(1)}%`).join(', ')})`;
+}
+const escolhaCoresHub = () => plataformasDoHub().map(escolhaCor);
+
+function escolhaHubHTML(hub) {
+  const cores = escolhaCoresHub();
+  const brilho = cores.map((c, i) => `${Math.round((i - (cores.length - 1) / 2) * 30)}px 0 60px -18px ${c}8C`).join(', ');
+  const fila = escolhaCapasMistas(7).map((f) => `<img src="${esc(escolhaSrc(f))}" alt="" decoding="async">`).join('');
+  const n = itensDaPlataforma(estado.filmes, hub).length;
+  return `<button class="plat-sala plat-sala-hub" data-plataforma="${hub.id}" data-objeto="hub" style="--listras:${escolhaListras(cores)};--brilho:${brilho}" aria-label="${esc(`Entrar no ${hub.nome}`)}">
+      <span class="plat-hub-texto">${escolhaMarcaHTML(hub)}<span class="plat-desc">${esc(descricaoPlataforma(hub))}</span></span>
+      ${fila ? `<span class="plat-fila" aria-hidden="true">${fila}</span>` : ''}
+      <span class="plat-conta plat-conta-hub"><b>${n.toLocaleString('pt-BR')}</b>${n === 1 ? hub.rotulos.item : hub.rotulos.itens}</span>
+    </button>`;
+}
+
+// A animação do objeto escolhido; `entrar` é chamado quando a cortina cobre a tela,
+// e a cortina sai mostrando a plataforma. Sem movimento, entra direto.
+function escolhaAnimar(el, sala, entrar) {
+  const objeto = sala.dataset.objeto;
+  const [fecha, troca] = ESCOLHA_TEMPOS[objeto] || ESCOLHA_TEMPOS.ingresso;
+  const cortina = document.createElement('div');
+  cortina.className = 'plat-cortina';
+  cortina.setAttribute('aria-hidden', 'true');
+  cortina.innerHTML = escolhaCoresHub().map((c) => `<i style="background:${c}"></i>`).join('');
+  document.body.append(cortina);
+  el.classList.add('escolhendo');
+  sala.classList.add('escolhido');
+  setTimeout(() => { cortina.className = `plat-cortina on c-${objeto}`; }, fecha);
+  setTimeout(() => {
+    entrar();
+    cortina.className = `plat-cortina sai c-${objeto}`;
+    setTimeout(() => cortina.remove(), 800);
+  }, troca);
+}
+
 function abrirTelaPlataformas({ perguntarSistemas, precisaEscolher }, aoTerminar) {
   const hub = PLATAFORMAS.find((p) => p.hub);
   const el = document.createElement('div');
@@ -428,10 +567,10 @@ function abrirTelaPlataformas({ perguntarSistemas, precisaEscolher }, aoTerminar
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-labelledby', 'plat-titulo');
   el.innerHTML = `
-    ${mosaicoEntradaHTML(estado.filmes)}
+    ${escolhaMosaicoHTML()}
     <div class="entrada-veu" aria-hidden="true"></div>
     <section class="entrada-cartao plat-cartao">
-      <h1 class="marca entrada-marca">${iconePlataformaHTML(hub)} ${hub.nome}</h1>
+      <h1 class="entrada-marca plat-marca-topo" aria-label="${esc(hub.nome)}">${escolhaMarcaHTML(hub)}</h1>
       <div class="entrada-passo" data-passo="sistemas" hidden>
         <h2 id="plat-titulo">O que você vai acompanhar?</h2>
         <p class="entrada-sub">Escolha um ou mais. Com mais de um, o ${hub.nome} junta tudo numa lista só. Dá para mudar depois nas Configurações.</p>
@@ -440,12 +579,11 @@ function abrirTelaPlataformas({ perguntarSistemas, precisaEscolher }, aoTerminar
         </div>
         <button class="btn btn-laranja entrada-enviar" data-e="continuar">Continuar</button>
       </div>
-      <div class="entrada-passo" data-passo="escolher" hidden>
-        <h2>Onde você quer entrar?</h2>
-        <p class="entrada-sub">Dá para trocar a qualquer hora pela marca, no alto da tela.</p>
-        <div class="plat-opcoes" data-e="opcoes"></div>
+      <div class="entrada-passo plat-escolha" data-passo="escolher" hidden>
+        <h2 class="plat-pergunta">Qual sessão hoje?</h2>
+        <div class="plat-salas" data-e="opcoes"></div>
         <div class="plat-hub-faixa" data-e="hub"></div>
-        <label class="plat-sempre"><input type="checkbox" data-e="sempre"> Sempre abrir direto na que eu escolher <small>(muda nas Configurações)</small></label>
+        <label class="plat-sempre"><input type="checkbox" data-e="sempre"> Sempre abrir direto na que eu escolher</label>
       </div>
     </section>`;
   document.body.append(el);
@@ -457,16 +595,22 @@ function abrirTelaPlataformas({ perguntarSistemas, precisaEscolher }, aoTerminar
     const visivel = $(`[data-passo="${passo}"]`, el);
     $('h2', visivel).id = 'plat-titulo';
     for (const h of $$('.entrada-passo[hidden] h2', el)) h.removeAttribute('id');
+    el.classList.toggle('plat-modo-escolha', passo === 'escolher');
     if (passo === 'escolher') {
-      // As plataformas lado a lado e, embaixo, o hub largo: ele é a soma delas, não um terceiro cartão.
+      // Os objetos lado a lado (do mesmo tamanho) e, embaixo, a faixa larga do hub: ele é a soma deles.
       const disp = plataformasDisponiveis();
       const hubDisp = disp.find((p) => p.hub);
-      $('[data-e="opcoes"]', el).innerHTML = disp.filter((p) => !p.hub).map((p) => cartaoPlataformaHTML(p)).join('');
-      $('[data-e="hub"]', el).innerHTML = hubDisp ? `<div class="plat-ou" aria-hidden="true"><span>ou, tudo junto</span></div>${cartaoPlataformaHTML(hubDisp)}` : '';
+      const salas = disp.filter((p) => !p.hub);
+      const caixa = $('[data-e="opcoes"]', el);
+      caixa.style.setProperty('--n', salas.length);
+      caixa.innerHTML = salas.map(escolhaSalaHTML).join('');
+      $('[data-e="hub"]', el).innerHTML = hubDisp ? escolhaHubHTML(hubDisp) : '';
     }
     Movimento.animar(visivel, [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 260 });
-    if (passo === 'escolher') Movimento.sequencia($$('.plat-opcao', visivel), { y: 12, duracao: 380, passo: 60 });
-    ($('.plat-opcao', visivel) || visivel).focus({ preventScroll: true });
+    // A cascata anima o botão; o hover levanta o objeto de dentro (a animação segura o transform do botão).
+    if (passo === 'escolher') Movimento.sequencia($$('.plat-sala', visivel), { y: 14, duracao: 420, passo: 60 });
+    // Na escolha, o foco fica na tela (sem o anel num objeto antes de a pessoa usar o teclado).
+    if (passo === 'escolher') { visivel.tabIndex = -1; visivel.focus({ preventScroll: true }); } else ($('.plat-opcao', visivel) || visivel).focus({ preventScroll: true });
   };
 
   const terminar = () => {
@@ -487,12 +631,18 @@ function abrirTelaPlataformas({ perguntarSistemas, precisaEscolher }, aoTerminar
       atualizarContinuar();
       return;
     }
-    if (opcao) {
-      const id = opcao.dataset.plataforma;
-      if ($('[data-e="sempre"]', el).checked) estado.config = await api.salvarConfig({ plataformaInicial: id });
-      // Troca já por trás da tela, sem animação: a tela sumindo é a transição.
-      trocarPlataforma(id, { animar: false });
-      terminar();
+    const sala = e.target.closest('.plat-sala');
+    if (sala && !el.classList.contains('escolhendo')) {
+      const id = sala.dataset.plataforma;
+      const sempre = $('[data-e="sempre"]', el).checked;
+      // Troca por trás da tela, sem animação própria: a cortina (ou a tela sumindo) é a transição.
+      const entrar = () => {
+        trocarPlataforma(id, { animar: false });
+        if (sempre) api.salvarConfig({ plataformaInicial: id }).then((c) => { estado.config = c; });
+        terminar();
+      };
+      if (Movimento.reduzido.matches || document.visibilityState !== 'visible') entrar();
+      else escolhaAnimar(el, sala, () => { entrar(); el.remove(); });
       return;
     }
     if (e.target.closest('[data-e="continuar"]')) {
