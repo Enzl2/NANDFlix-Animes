@@ -93,6 +93,19 @@ html.celular .pr-ind { gap: 10px; }
 html.celular .pr-botao { width: 38px; height: 38px; padding: 0; justify-content: center; }
 html.celular .pr-botao span { display: none; }
 html.celular .pr-botao .ico { width: 17px; height: 17px; }
+/* Prêmios de jogos: um cartão por vez na largura, a fileira rola de lado */
+html.celular .calendario-caixa.pr-larga { width: 100vw; height: 100dvh; padding: calc(60px + env(safe-area-inset-top, 0px)) 14px calc(20px + env(safe-area-inset-bottom, 0px)); }
+html.celular .pr-larga .pr-resumo { padding: 16px; }
+html.celular .pr-catnav { gap: 4px; grid-template-columns: 44px minmax(0, 1fr) 44px; margin: 2px -8px 0; }
+html.celular .pr-seta { width: 44px; height: 44px; }
+html.celular .pr-catnome { font-size: 22px; padding: 4px 8px; gap: 8px; }
+html.celular .pr-fileira { --larg-card: 62vw; justify-content: flex-start; margin: 0 -14px; padding: 16px 14px 10px; gap: 14px; scrollbar-width: none; scroll-snap-type: x mandatory; }
+html.celular .pr-fileira::-webkit-scrollbar { display: none; }
+html.celular .pr-card { flex: 0 0 var(--larg-card); max-width: none; min-width: 0; }
+html.celular .pr-card-acoes .pr-botao { width: auto; height: 38px; }
+html.celular .pr-card-acoes .pr-botao span { display: inline; }
+html.celular .pr-catmenu { position: fixed; left: 14px; right: 14px; top: calc(120px + env(safe-area-inset-top, 0px)); transform: none; min-width: 0; max-height: 60dvh; }
+
 html.celular #premios::before {
   content: ""; position: fixed; z-index: 4; top: 0; left: 0; right: 0; height: calc(60px + env(safe-area-inset-top, 0px));
   background: linear-gradient(180deg, var(--canvas) 70%, rgba(5, 6, 8, 0)); pointer-events: none;

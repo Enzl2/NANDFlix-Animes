@@ -152,3 +152,35 @@ test('histórico gerado: os dois arquivos existem, são de jogos e têm ids', ()
     assert.ok(ids.filter((x) => x.igdbSlug || x.steam).length / ids.length > 0.9, id);
   }
 });
+
+// ---- Tela dos prêmios de jogos (src/premios-jogos.js, contas puras) ----
+const tela = require('../src/premios-jogos');
+
+test('desenvolvedor: a parte antes de "/" do "Jogo – Desenvolvedor/Publicadora"', () => {
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: 'Sandfall Interactive / Kepler Interactive' }).desenvolvedor, 'Sandfall Interactive');
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: 'Team Asobi/Sony Interactive Entertainment' }).desenvolvedor, 'Team Asobi');
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: 'Treyarch/Raven/Activision' }).desenvolvedor, 'Treyarch');
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: 'Hello Games' }).desenvolvedor, 'Hello Games');
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: '' }).desenvolvedor, '');
+});
+
+test('desenvolvedor: o jogo da lista manda; trilha sonora sem "/" é crédito, não estúdio', () => {
+  const f = { desenvolvedores: [{ id: 1, nome: 'Larian Studios' }, { id: 2, nome: 'Outra' }] };
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: 'Alguém / Pub' }, f).desenvolvedor, 'Larian Studios');
+  assert.strictEqual(tela.desenvolvedorDoIndicado({ extra: 'Alguém' }, { desenvolvedores: [] }).desenvolvedor, 'Alguém');
+  const m = tela.desenvolvedorDoIndicado({ extra: 'Lorien Testard' }, null, 'Best Score and Music');
+  assert.deepStrictEqual(m, { desenvolvedor: '', credito: 'Lorien Testard' });
+});
+
+test('jogados: conta pelo status do jogo, nunca pelo palpite', () => {
+  const lista = [{ status: 'quero' }, { status: 'jogando' }, { status: 'pausado' }, { status: 'zerado' }, { status: 'cem' }, { status: 'larguei' }, null, undefined, { status: 'quero', palpite: true }];
+  assert.strictEqual(tela.contarJogados(lista), 5);
+  assert.strictEqual(tela.jogoJogado({ status: 'quero' }), false);
+  assert.strictEqual(tela.jogoJogado(null), false);
+});
+
+test('inicial dos indicados que são pessoas ou times', () => {
+  assert.strictEqual(tela.inicialDe('Team Liquid'), 'TL');
+  assert.strictEqual(tela.inicialDe('Chovy (Gen.G)'), 'C');
+  assert.strictEqual(tela.inicialDe(''), '?');
+});

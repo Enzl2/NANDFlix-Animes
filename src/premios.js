@@ -28,8 +28,7 @@ const infoPremio = (id) => PREMIOS_INFO.find((p) => p.id === id) || { id, nome: 
 // plataformas o declara; sem ele, olha o tipo.
 const itemEhJogo = (f) => (typeof ehJogo === 'function' ? ehJogo(f) : Boolean(f) && f.tipo === 'jogo');
 const premioEhDeJogo = (id) => infoPremio(id).tipo === 'jogo';
-// "Já jogou": começou o jogo (jogando, pausado, zerado, 100% ou largou). "Quero jogar" ainda não é jogar.
-const jogoJogado = (f) => Boolean(f) && ['jogando', 'pausado', 'zerado', 'cem', 'larguei'].includes(f.status);
+// jogoJogado (pelo status do jogo na lista, nunca pelo palpite) vem de premios-jogos.js.
 const ROTULOS_STATUS_PREMIOS = { quero: 'Quero jogar', jogando: 'Jogando', pausado: 'Pausado', zerado: 'Zerado', cem: '100%', larguei: 'Larguei' };
 // "Já viu" (filme) ou "já jogou" (jogo): o que conta na cédula.
 const itemFeito = (premio, f) => Boolean(f) && (premioEhDeJogo(premio) ? jogoJogado(f) : Boolean(f.visto));
@@ -61,7 +60,8 @@ const premiosDados = {}; // id → { nome, cerimonias, filmes }
 let indicePremios = null;
 const cachePremiosFilme = new Map();
 const premiosTela = $('#premios');
-const vista = { premio: 'oscar', numero: null, soFalta: false };
+// cat: a categoria aberta (prêmios de jogos); menu: a lista de categorias está aberta.
+const vista = { premio: 'oscar', numero: null, soFalta: false, cat: null, menu: false };
 
 // ---- Dados ----
 
@@ -505,6 +505,115 @@ async function completarCapasJogosPremios() {
   }
 }
 
+// ---- Prêmios de jogos: uma categoria por vez, os indicados lado a lado (como a página do The Game Awards) ----
+
+// Um cartão: capa em pé, título, desenvolvedor, e os botões Joguei e Palpite. Pessoas e times (sem jogo)
+// trazem o nome no lugar do título e uma inicial grande no lugar da capa, sem o Joguei.
+function cartaoJogoHTML({ x, i, f }, k, premio, palpite) {
+  const ids = idsDoIndicado(premio, x);
+  const eu = palpite === chaveIndicado(x);
+  const jogou = itemFeito(premio, f);
+  const semTitulo = !x.titulo;
+  const nome = semTitulo ? x.pessoa : (f ? f.titulo : x.titulo);
+  const { desenvolvedor, credito } = semTitulo ? { desenvolvedor: '', credito: x.extra || '' } : desenvolvedorDoIndicado(x, f, k.chave);
+  const pessoa = !semTitulo && x.pessoa && x.pessoa !== x.titulo ? x.pessoa : '';
+  const seloLista = f ? `<span class="pr-na-lista">Na sua lista${ROTULOS_STATUS_PREMIOS[f.status] ? ` · ${ROTULOS_STATUS_PREMIOS[f.status]}` : ''}</span>` : '';
+  const capa = semTitulo
+    ? `<div class="pr-card-capa pr-inicial" aria-hidden="true"><span>${esc(inicialDe(x.pessoa))}</span></div>`
+    : `<button class="pr-card-capa" data-pr="abrir" title="Ver os detalhes de ${esc(x.titulo)}">${capaIndicadoHTML(f, ids, nome, true, x.titulo)}</button>`;
+  return `<li class="pr-card${x.venceu ? ' venceu' : ''}${eu ? ' palpite' : ''}${jogou ? ' visto' : ''}${semTitulo ? ' sem-jogo' : ''}" data-i="${i}">
+      ${x.venceu ? `<em class="selo-venceu pr-faixa">${icone('Trophy')} Venceu</em>` : ''}
+      ${capa}
+      <b class="pr-card-titulo" title="${esc(nome)}">${esc(nome)}</b>
+      ${desenvolvedor ? `<span class="pr-card-dev" title="${esc(desenvolvedor)}">${esc(desenvolvedor)}</span>` : ''}
+      ${credito ? `<span class="pr-card-credito" title="${esc(credito)}">${esc(credito)}</span>` : ''}
+      ${pessoa ? `<span class="pr-card-credito" title="${esc(pessoa)}">${esc(pessoa)}</span>` : ''}
+      ${seloLista}
+      <div class="pr-card-acoes">
+        ${semTitulo || k.naoLancado ? '' : `<button class="pr-botao pr-visto${jogou ? ' on' : ''}" data-pr="joguei" aria-pressed="${jogou}" title="${jogou ? 'Você já jogou (clique para desmarcar)' : f ? 'Marcar como jogado' : 'Adicionar à sua lista como jogado'}">${icone('Check')}<span>Joguei</span></button>`}
+        <button class="pr-botao pr-palpite${eu ? ' on' : ''}" data-pr="palpite" aria-pressed="${eu}" title="${eu ? 'Tirar o palpite' : 'Acho que este vence'}">${icone('Trophy')}<span>Palpite</span></button>
+      </div>
+    </li>`;
+}
+
+// A categoria aberta de uma edição (a primeira, se a guardada não existe nela).
+function indiceCategoriaAberta(c) {
+  const i = c.categorias.findIndex((k) => k.chave === vista.cat);
+  return i >= 0 ? i : 0;
+}
+
+function corpoJogosHTML(premio, c, ced, resumoHTML, nomesRepetidos) {
+  const ks = c.categorias;
+  const i = indiceCategoriaAberta(c);
+  const k = ks[i];
+  if (!k) return resumoHTML;
+  vista.cat = k.chave;
+  const palpite = ced.palpites[k.chave];
+  let status = '';
+  if (c.vencedores && palpite) status = k.indicados.some((x) => x.venceu && chaveIndicado(x) === palpite) ? `<span class="pr-status certo">${icone('Check')} Acertou</span>` : `<span class="pr-status errado">${icone('X')} Errou</span>`;
+  else if (!c.vencedores) status = palpite ? `<span class="pr-status">${icone('Trophy')} Palpite feito</span>` : '<span class="pr-status vazio">Sem palpite</span>';
+  const itens = k.indicados.map((x, j) => ({ x, i: j, f: filmeDoIndicado(premio, x, c) }))
+    // "Só o que falta jogar": sem pessoas, times e jogos que ainda não saíram, e sem o que você já jogou.
+    .filter(({ x, f }) => !vista.soFalta || (x.titulo && !k.naoLancado && !itemFeito(premio, f)));
+  const menu = ks.map((o, j) => `<li role="option" aria-selected="${j === i}"><button class="pr-catmenu-item${j === i ? ' ativo' : ''}" data-pr="cat-ir" data-chave="${esc(o.chave)}">
+      <span>${esc(o.nome)}</span>${ced.palpites[o.chave] ? `<i class="pr-catmenu-ponto" title="Palpite feito">${icone('Trophy')}</i>` : ''}</button></li>`).join('');
+  return `<nav class="pr-catnav" aria-label="Categorias">
+      <button class="redondo pr-seta" data-pr="cat-ant" title="Categoria anterior (←)" aria-label="Categoria anterior">${icone('ChevronLeft')}</button>
+      <div class="pr-catcentro">
+        <button class="pr-catnome" data-pr="cat-menu" aria-haspopup="listbox" aria-expanded="${vista.menu}" title="Escolher a categoria">
+          <span>${esc(k.nome)}</span>${icone('ChevronDown')}
+        </button>
+        <div class="pr-catinfo">${nomesRepetidos.has(k.nome) ? `<small>${esc(k.original)}</small> · ` : ''}<span>${i + 1} de ${ks.length}</span>${status ? ` · ${status}` : ''}</div>
+        <ul class="pr-catmenu" role="listbox" aria-label="Todas as categorias"${vista.menu ? '' : ' hidden'}>${menu}</ul>
+      </div>
+      <button class="redondo pr-seta" data-pr="cat-prox" title="Próxima categoria (→)" aria-label="Próxima categoria">${icone('ChevronRight')}</button>
+    </nav>
+    <section class="pr-cat-atual" data-chave="${esc(k.chave)}">
+      ${itens.length ? `<ol class="pr-fileira">${itens.map((it) => cartaoJogoHTML(it, k, premio, palpite)).join('')}</ol>` : `<p class="mensagem">Você já jogou todos os indicados desta categoria. 🎉</p>`}
+    </section>
+    ${resumoHTML}`;
+}
+
+// ← → e as setas do topo: vão para a categoria anterior/próxima (voltando ao fim/começo).
+function irParaCategoria(delta, chave = null) {
+  const d = premiosDados[vista.premio];
+  const c = d && d.cerimonias.find((x) => x.numero === vista.numero);
+  if (!c || !c.indicados || !c.categorias.length) return;
+  const n = c.categorias.length;
+  const novo = chave ? c.categorias.findIndex((k) => k.chave === chave) : (indiceCategoriaAberta(c) + delta + n) % n;
+  if (novo < 0) return;
+  vista.cat = c.categorias[novo].chave;
+  vista.menu = false;
+  renderPremios();
+}
+
+// Joguei: o jogo da lista vira "zerado" sem data (jogou em algum momento; o calendário não ganha um
+// dia inventado). Fora da lista, entra já assim. Desligar volta para "quero jogar", com Desfazer.
+// O palpite não tem nada a ver com isso.
+async function alternarJogueiIndicado(premio, c, x) {
+  const f = filmeDoIndicado(premio, x, c);
+  if (f) {
+    if (jogoJogado(f)) {
+      const antes = { status: f.status, zeradoEm: f.zeradoEm || '' };
+      await salvarJogo(f, { status: 'quero', zeradoEm: '' });
+      aviso(`“${f.titulo}” voltou para “quero jogar”.`, {
+        duracao: 6000,
+        acao: { rotulo: 'Desfazer', fn: async () => { await salvarJogo(f, antes); if (!premiosTela.hidden) renderPremios(); } },
+      });
+    } else {
+      await salvarJogo(f, { status: 'zerado', zeradoEm: '' });
+    }
+    renderPremios();
+    return;
+  }
+  const ids = idsDoIndicado(premio, x);
+  const novo = await adicionarJogo({ igdb: ids.igdb ? Number(ids.igdb) : undefined, igdbSlug: ids.igdbSlug || '', steam: ids.steam ? Number(ids.steam) : undefined, titulo: x.titulo });
+  if (!novo) { aviso(`Não consegui adicionar “${x.titulo}” à sua lista.`, { tipo: 'erro' }); renderPremios(); return; }
+  if (!jogoJogado(novo)) await salvarJogo(novo, { status: 'zerado', zeradoEm: '' });
+  aviso(`“${novo.titulo}” entrou na sua lista como jogado.`, { tipo: 'ok', duracao: 5000 });
+  renderPremios();
+}
+
 function renderPremios() {
   const caixa = $('#premios-caixa');
   const premio = vista.premio;
@@ -546,7 +655,7 @@ function renderPremios() {
     const pct = filmes.size ? Math.round((vistos / filmes.size) * 100) : 0;
     const nomesRepetidos = new Set(c.categorias.map((k) => k.nome).filter((n, i, l) => l.indexOf(n) !== i));
 
-    const cards = c.categorias.map((k) => {
+    const cards = jogo ? '' : c.categorias.map((k) => {
       const palpite = ced.palpites[k.chave];
       const indicados = k.indicados.map((x, i) => ({ x, i, f: filmeDoIndicado(premio, x, c) }))
         // "Só o que falta ver/jogar": sem pessoas, times e jogos que ainda não saíram, e sem o que você já fez.
@@ -587,7 +696,7 @@ function renderPremios() {
       </section>`;
     }).join('');
 
-    corpo = `<section class="pr-resumo">
+    const resumoHTML = `<section class="pr-resumo">
         <div class="pr-resumo-titulo">
           <span class="est-kicker">${icone('Trophy')} ${esc(nomeEdicao(c))}</span>
           <h3>Você ${v.viu} ${vistos} de ${filmes.size} ${v.itens} ${info.festival ? 'da competição' : 'indicados'}</h3>
@@ -602,10 +711,21 @@ function renderPremios() {
           <button class="chip${vista.soFalta ? ' ativo' : ''}" data-pr="so-falta" aria-pressed="${vista.soFalta}">${icone('EyeOff')} Só o que falta ${v.ver}</button>
           ${palpitados ? `<button class="chip" data-pr="limpar-palpites">${icone('Eraser')} Limpar palpites</button>` : ''}
         </div>
-      </section>
+      </section>`;
+    corpo = jogo
+      ? corpoJogosHTML(premio, c, ced, resumoHTML, nomesRepetidos)
+      : `${resumoHTML}
       <div class="pr-categorias">${cards || `<p class="mensagem">Você já ${v.viu} todos os ${info.festival ? `${v.itens} da competição` : 'indicados'}. 🎉</p>`}</div>`;
   }
 
+  // Jogos: a caixa ocupa quase a janela toda. Ao redesenhar a mesma categoria (Joguei, Palpite), a
+  // fileira e a rolagem ficam onde estavam.
+  const jogos = premioEhDeJogo(premio);
+  const chaveVista = `${premio}|${vista.numero}|${vista.cat}`;
+  const mesma = caixa.dataset.vista === chaveVista;
+  const esq = mesma ? ($('.pr-fileira', caixa) || { scrollLeft: 0 }).scrollLeft : 0;
+  const rolagem = mesma ? caixa.scrollTop : 0;
+  caixa.classList.toggle('pr-larga', jogos);
   caixa.innerHTML = `
     <div class="tl-topo pr-topo">
       <h2>Prêmios</h2>
@@ -619,6 +739,10 @@ function renderPremios() {
   // O prêmio e a aba escolhidos à vista.
   $('.pr-lista .chip.ativo', caixa)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   $('.pr-aba.ativo', caixa)?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  caixa.dataset.vista = `${premio}|${vista.numero}|${vista.cat}`;
+  const fileira = $('.pr-fileira', caixa);
+  if (mesma) { caixa.scrollTop = rolagem; if (fileira) fileira.scrollLeft = esq; }
+  else if (fileira) { caixa.scrollTop = 0; $('.pr-card.venceu', fileira)?.scrollIntoView({ block: 'nearest', inline: 'center' }); }
 }
 
 // Visto: o filme da lista muda; um filme fora da lista entra nela já como visto
@@ -654,11 +778,13 @@ async function alternarVistoIndicado(premio, c, x) {
 premiosTela.addEventListener('click', async (e) => {
   if (e.target === premiosTela) { fecharPremios(); return; }
   const b = e.target.closest('[data-pr]');
+  // A lista de categorias fecha com qualquer clique fora dela.
+  if (vista.menu && !(b && b.dataset.pr === 'cat-menu') && !e.target.closest('.pr-catmenu')) fecharMenuCategorias();
   if (!b) return;
   const d = premiosDados[vista.premio];
   const c = d && d.cerimonias.find((x) => x.numero === vista.numero);
-  const li = b.closest('.pr-ind');
-  const cat = b.closest('.pr-cat');
+  const li = b.closest('.pr-ind, .pr-card');
+  const cat = b.closest('.pr-cat, .pr-cat-atual');
   const k = c && cat ? c.categorias.find((x) => x.chave === cat.dataset.chave) : null;
   const x = k && li ? k.indicados[Number(li.dataset.i)] : null;
   switch (b.dataset.pr) {
@@ -677,6 +803,16 @@ premiosTela.addEventListener('click', async (e) => {
       renderPremios();
       break;
     }
+    case 'cat-ant': irParaCategoria(-1); break;
+    case 'cat-prox': irParaCategoria(1); break;
+    case 'cat-menu': {
+      vista.menu = !vista.menu;
+      const lista = $('.pr-catmenu', premiosTela);
+      if (lista) { lista.hidden = !vista.menu; b.setAttribute('aria-expanded', String(vista.menu)); $('.pr-catmenu-item.ativo', lista)?.scrollIntoView({ block: 'nearest' }); }
+      break;
+    }
+    case 'cat-ir': irParaCategoria(0, b.dataset.chave); break;
+    case 'joguei': if (x) { b.disabled = true; await alternarJogueiIndicado(vista.premio, c, x); } break;
     case 'visto': if (x) { b.disabled = true; await alternarVistoIndicado(vista.premio, c, x); } break;
     case 'abrir': {
       if (!x || !x.titulo) return; // pessoa ou time: não há página
@@ -691,14 +827,32 @@ premiosTela.addEventListener('click', async (e) => {
   }
 });
 
+function fecharMenuCategorias() {
+  vista.menu = false;
+  const lista = $('.pr-catmenu', premiosTela);
+  if (lista) lista.hidden = true;
+  $('.pr-catnome', premiosTela)?.setAttribute('aria-expanded', 'false');
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !modal.open && !premiosTela.hidden && !estado.painelId) { e.preventDefault(); fecharPremios(); }
+  if (premiosTela.hidden || modal.open || estado.painelId) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (vista.menu) fecharMenuCategorias(); else fecharPremios();
+    return;
+  }
+  // ← → trocam de categoria nos prêmios de jogos (fora de campos de texto).
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && premioEhDeJogo(vista.premio) && !e.altKey && !e.ctrlKey && !e.metaKey
+    && !e.target.closest('input, textarea, select, [contenteditable]') && !e.target.closest('.pr-abas, .pr-lista')) {
+    e.preventDefault();
+    irParaCategoria(e.key === 'ArrowLeft' ? -1 : 1);
+  }
 });
 
 // A roda do mouse rola de lado a lista de prêmios e as abas dos anos.
 premiosTela.addEventListener('wheel', (e) => {
-  const abas = e.target.closest('.pr-abas, .pr-lista');
-  if (!abas || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  const abas = e.target.closest('.pr-abas, .pr-lista, .pr-fileira');
+  if (!abas || Math.abs(e.deltaX) > Math.abs(e.deltaY) || abas.scrollWidth <= abas.clientWidth) return;
   e.preventDefault();
   abas.scrollLeft += e.deltaY;
 }, { passive: false });

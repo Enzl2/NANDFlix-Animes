@@ -3080,6 +3080,93 @@ span.serie-conta .ico { width: 16px; height: 16px; }
 .pr-visto.on { background: rgba(var(--acento-rgb), .28); border-color: var(--acento-texto); color: var(--acento-texto); }
 .pr-palpite.on { background: rgba(245, 179, 1, .16); border-color: rgba(245, 179, 1, .7); color: var(--dourado); }
 
+/* Prêmios de jogos (TGA, BAFTA Games): a caixa ocupa quase a janela; uma categoria por vez, com os
+   indicados lado a lado como cartões (premios.js → corpoJogosHTML). */
+.calendario-caixa.pr-larga {
+  display: flex; flex-direction: column;
+  width: min(1880px, calc(100vw - 24px)); height: calc(100vh - 24px);
+  padding: 22px 36px 28px;
+}
+.pr-larga .pr-abas { margin: 8px -4px 4px; padding: 4px 4px 8px; }
+.pr-larga .pr-resumo { margin: 8px 0 0; padding: 16px 22px; }
+.pr-larga .pr-resumo h3 { margin: 6px 0 8px; font-size: clamp(18px, 1.6vw, 22px); }
+.pr-larga .pr-resumo p { margin-top: 8px; }
+
+.pr-catnav { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; margin: 6px 0 4px; }
+.pr-seta { width: 52px; height: 52px; }
+.pr-seta .ico { width: 26px; height: 26px; }
+.pr-catcentro { position: relative; justify-self: center; max-width: 100%; text-align: center; }
+.pr-catnome {
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px; max-width: 100%;
+  padding: 4px 18px; border: 0; border-radius: 16px; background: none; color: var(--texto); cursor: pointer;
+  font: 800 clamp(24px, 3vw, 44px)/1.12 var(--display); letter-spacing: -.01em;
+  transition: background-color .15s ease-out;
+}
+.pr-catnome:hover, .pr-catnome[aria-expanded="true"] { background: rgba(232, 235, 240, .07); }
+.pr-catnome .ico { flex: none; width: .55em; height: .55em; color: var(--dourado); }
+.pr-catinfo { margin-top: 2px; font-size: 13px; color: var(--texto-2); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 6px; }
+.pr-catinfo small { font-size: 12px; }
+.pr-catmenu {
+  position: absolute; z-index: 12; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  min-width: min(380px, 86vw); max-height: min(56vh, 520px); overflow-y: auto; margin: 0; padding: 6px; list-style: none; text-align: left;
+  background: var(--superficie-2); border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(232, 235, 240, .1);
+}
+.pr-catmenu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; padding: 0 12px;
+  border: 0; border-radius: 9px; background: none; color: var(--texto); font: 600 14px var(--ui); text-align: left; cursor: pointer;
+}
+.pr-catmenu-item:hover { background: rgba(232, 235, 240, .08); }
+.pr-catmenu-item.ativo { background: rgba(var(--acento-rgb), .28); color: var(--acento-claro); }
+.pr-catmenu-ponto { display: inline-flex; color: var(--dourado); }
+.pr-catmenu-ponto .ico { width: 14px; height: 14px; }
+
+.pr-cat-atual { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.pr-fileira {
+  --larg-card: clamp(150px, calc((100vh - 640px) * .667), 270px);
+  list-style: none; margin: 0; padding: 18px 8px 14px; display: flex; gap: 20px; justify-content: safe center;
+  overflow-x: auto; scrollbar-width: thin; scroll-snap-type: x proximity;
+}
+.pr-card {
+  position: relative; flex: 0 1 var(--larg-card); min-width: 150px; max-width: 300px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 12px 14px; text-align: center;
+  border-radius: 16px; border: 1px solid rgba(232, 235, 240, .07); background: rgba(232, 235, 240, .035);
+  scroll-snap-align: center; transition: background-color .15s ease-out, border-color .15s ease-out;
+}
+.pr-card:hover { background: rgba(232, 235, 240, .06); }
+.pr-card.palpite:not(.venceu) { border-color: rgba(var(--acento-texto-rgb), .55); }
+.pr-card.venceu { background: rgba(245, 179, 1, .1); border-color: rgba(245, 179, 1, .55); box-shadow: 0 0 36px rgba(245, 179, 1, .16); }
+.pr-faixa {
+  position: absolute; z-index: 2; top: -11px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  padding: 3px 12px; border-radius: 999px; background: var(--dourado); color: #1b1300; font-size: 12px;
+}
+.pr-faixa .ico { width: 13px; height: 13px; }
+.pr-card-capa {
+  position: relative; display: block; width: 100%; aspect-ratio: 2 / 3; padding: 0; border: 0; border-radius: 10px; overflow: hidden;
+  background: var(--superficie-2); box-shadow: 0 10px 26px rgba(0, 0, 0, .5); cursor: pointer;
+}
+.pr-card-capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pr-card-capa .pr-capa-vazia { padding: 12px; font-size: 15px; font-weight: 700; }
+.pr-card.visto .pr-card-capa::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: var(--acento-texto); }
+.pr-card .pr-card-capa img.pr-capa-deitada { object-fit: contain; }
+.pr-inicial {
+  display: grid; place-items: center; cursor: default;
+  background: radial-gradient(120% 90% at 30% 15%, rgba(var(--acento-rgb), .55), transparent 70%), linear-gradient(160deg, #2b2d31, #17181b);
+}
+.pr-inicial span { font: 800 clamp(44px, 5vw, 84px)/1 var(--display); color: var(--acento-claro); letter-spacing: .02em; }
+.pr-card.venceu .pr-inicial span { color: var(--dourado); }
+.pr-card-titulo {
+  margin-top: 6px; max-width: 100%; font: 700 15.5px/1.25 var(--display);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.pr-card-dev, .pr-card-credito {
+  max-width: 100%; font-size: 12.5px; line-height: 1.3; color: var(--texto-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.pr-card-credito { font-style: italic; }
+.pr-card .pr-na-lista { font-size: 11.5px; font-weight: 600; color: var(--acento-texto); }
+.pr-card-acoes { display: flex; gap: 6px; width: 100%; margin-top: auto; padding-top: 10px; }
+.pr-card-acoes .pr-botao { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 6px; }
+
 /* Nos detalhes do filme: "Oscar: 2 vitórias · 7 indicações" e a lista */
 .painel-premios summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .painel-premios summary::-webkit-details-marker { display: none; }
