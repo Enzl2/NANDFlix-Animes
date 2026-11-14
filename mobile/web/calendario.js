@@ -44,11 +44,14 @@ mesHTML = function mesHTMLCelular(mes) {
     let vistos = porDia.get(dia) || [];
     const temDoMes = Boolean(doMes && vistos.includes(doMes));
     if (temDoMes) vistos = [doMes, ...vistos.filter((f) => f !== doMes)];
-    const wl = idsWatchlist(dia, p).length;
+    const wlFilmes = idsWatchlist(dia, p).map(porId).filter(Boolean);
+    const wl = wlFilmes.length;
+    const wlSrc = wl && !vistos.length ? srcCapa(wlFilmes[0]) : '';
     const eps = porEp ? selosEpisodios(vistos, dia) : 0;
     const classes = ['ccal-dia'];
     if (vistos.length) classes.push('com-vistos');
     if (vistos.length > 1) classes.push('varios');
+    if (wl && !vistos.length) classes.push('com-wl');
     if (temDoMes) classes.push('do-mes');
     if (dia === diaHoje) classes.push('hoje');
     if (dia > diaHoje) classes.push('futuro');
@@ -56,10 +59,11 @@ mesHTML = function mesHTMLCelular(mes) {
     celulas += `
       <button class="${classes.join(' ')}" data-c="dia" data-dia="${dia}" aria-label="${esc(`${diaLegivel(dia)}${vistos.length ? (porEp ? `: ${eps ? `${eps} episódio${eps === 1 ? '' : 's'}` : 'assistido'}` : (jogos ? `: ${vistos.length} zerado${vistos.length === 1 ? '' : 's'}` : `: ${vistos.length} visto${vistos.length === 1 ? '' : 's'}`)) : ''}`)}">
         ${src ? `<img src="${esc(src)}" alt="">` : ''}
+        ${wlSrc ? `<img class="ccal-wl-capa" src="${esc(wlSrc)}" alt="">` : ''}
         <span class="ccal-num">${d}</span>
         ${porEp && eps ? `<span class="ccal-mais ccal-eps">${eps}ep</span>` : vistos.length > 1 ? `<span class="ccal-mais">${vistos.length}</span>` : ''}
         ${temDoMes ? `<span class="ccal-trofeu">${icone('Trophy')}</span>` : ''}
-        ${wl && !vistos.length ? '<span class="ccal-ponto" aria-hidden="true"></span>' : ''}
+        ${wl && !vistos.length ? `<span class="ccal-talvez" aria-hidden="true">${wl > 1 ? `+${wl - 1}` : 'talvez'}</span>` : ''}
       </button>`;
   }
 

@@ -744,6 +744,7 @@ function renderPremios() {
   $('.pr-lista .chip.ativo', caixa)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   $('.pr-aba.ativo', caixa)?.scrollIntoView({ block: 'nearest', inline: 'center' });
   caixa.dataset.vista = `${premio}|${vista.numero}|${vista.cat}`;
+  caixa.dataset.premio = premio;
   const fileira = $('.pr-fileira', caixa);
   if (mesma) { caixa.scrollTop = rolagem; if (fileira) fileira.scrollLeft = esq; }
   else if (fileira) { caixa.scrollTop = 0; $('.pr-card.venceu', fileira)?.scrollIntoView({ block: 'nearest', inline: 'center' }); }

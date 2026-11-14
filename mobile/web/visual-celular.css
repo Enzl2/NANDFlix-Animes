@@ -1,0 +1,134 @@
+/* Visual novo no celular (lote 6): início, página do filme, calendário e prêmios. */
+
+/* ---- Início: o pôster sorteado vai até o topo, sem cartão nem brilho ---- */
+.cel-brilho { display: none; }
+.cel-inicio { padding-top: 0; }
+.cel-destaque {
+  --cor-cartao: var(--canvas); position: relative; margin: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible;
+}
+.cel-destaque::after { display: none; }
+.cel-destaque-capa { aspect-ratio: 2 / 3; max-height: 78vh; width: 100%; overflow: hidden; }
+.cel-destaque-capa > img { object-position: center 20%; }
+.cel-destaque-capa::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 120px; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(5, 6, 8, .7), rgba(5, 6, 8, 0));
+}
+.cel-destaque-capa::after {
+  top: auto; height: 55%; background: linear-gradient(0deg, var(--canvas) 4%, rgba(5, 6, 8, .6) 45%, rgba(5, 6, 8, 0));
+}
+.cel-destaque-titulo { display: none; }
+.cel-letreiro {
+  position: relative; z-index: 2; margin: -80px 20px 0; padding: 0; text-align: center;
+  font: 800 30px/1.05 var(--display); letter-spacing: -.02em; text-shadow: 0 2px 14px rgba(0, 0, 0, .55);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cel-destaque-meta { position: relative; z-index: 2; margin: 8px 0 0; padding: 0 20px; gap: 6px 14px; font-size: 13px; color: var(--texto-2); }
+.cel-destaque-botoes { position: relative; z-index: 2; padding: 16px 20px 6px; }
+.cel-btn-branco, .cel-btn-cinza { border-radius: 6px; }
+.cel-btn-branco { background: var(--acento-chapado); color: var(--sobre-chapado); }
+.cel-btn-cinza { background: rgba(255, 255, 255, .1); color: var(--texto); backdrop-filter: none; }
+.cel-pilulas { padding-top: 14px; }
+
+/* Barra de baixo: canto de 10px, a aba atual na cor da plataforma, sem glow */
+.cel-nav { border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5), inset 0 0 0 1px rgba(255, 255, 255, .09); }
+.cel-nav-item { border-radius: 6px; position: relative; }
+.cel-nav-item.ativo { background: none; color: var(--acento-chapado); }
+.cel-nav-item.ativo::before { content: ''; position: absolute; top: -7px; width: 26px; height: 3px; background: var(--acento-chapado); }
+.cel-topo.rolado { background: rgba(5, 6, 8, .97); }
+
+/* ---- Página do filme/jogo: botões chapados, notas numa linha, onde assistir sem caixa alta ---- */
+html.celular .painel-botoes .btn-assistir { background: var(--acento-chapado); color: var(--sobre-chapado); border-radius: 6px; }
+html.celular .painel-botoes .btn-assistir .ico { color: var(--sobre-chapado); }
+html.celular .painel-botoes .painel-escrever-btn { background: rgba(255, 255, 255, .1); border-radius: 6px; }
+html.celular .painel .btn, html.celular .painel .btn-laranja, html.celular .painel .btn-primario { border-radius: 6px; }
+html.celular .painel .btn-laranja, html.celular .painel .btn-primario { background: var(--acento-chapado); color: var(--sobre-chapado); }
+html.celular .painel .notas-linha { flex-wrap: nowrap; gap: 14px; overflow-x: auto; scrollbar-width: none; }
+html.celular .painel .notas-linha::-webkit-scrollbar { display: none; }
+html.celular .painel .nota-chip { flex: none; height: auto; padding: 0; gap: 6px; border: 0; border-radius: 0; background: none; font-size: 13.5px; font-weight: 700; }
+html.celular .painel .nota-chip .rotulo-nota { display: none; }
+html.celular .painel .onde-titulo h4 { font-size: 15px; font-weight: 700; color: var(--texto); text-transform: none; letter-spacing: 0; }
+html.celular .painel .onde-rotulo { text-transform: none; letter-spacing: 0; font-size: 12.5px; }
+html.celular .painel .onde-selo { border-radius: 6px; }
+html.celular .painel .servico { border-radius: 8px; box-shadow: none; }
+html.celular .painel .servico.meu { box-shadow: 0 0 0 2px var(--acento-chapado); }
+html.celular .painel .cel-det-acoes .redondo { border-radius: 6px; }
+html.celular .painel .rotulo-nota { display: none; }
+html.celular .painel .pr-lista-btn, html.celular .painel [class*="por-lista"], html.celular .painel .painel-lista-btn { border-radius: 6px; }
+html.celular .painel .lista-chip { border-radius: 6px; }
+
+/* ---- Calendário: selos de 4px, "talvez" com capa apagada e contorno tracejado, hoje na célula inteira ---- */
+.ccal-dia { background: none; }
+.ccal-mais { border-radius: 4px; min-width: 16px; height: 16px; }
+.ccal-trofeu { border-radius: 4px; }
+.ccal-dia.com-vistos { background: rgba(255, 255, 255, .04); }
+.ccal-dia.com-wl { outline: 1.5px dashed var(--acento-chapado); outline-offset: -1.5px; }
+.ccal-dia .ccal-wl-capa { opacity: .4; border-radius: 6px; }
+.ccal-dia.com-wl::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(5, 6, 8, .8), rgba(5, 6, 8, 0) 55%); }
+.ccal-dia.com-wl .ccal-num { top: 6px; color: var(--texto); }
+.ccal-talvez { position: absolute; z-index: 1; left: 0; right: 0; bottom: 6px; text-align: center; font: 600 10px/1 var(--ui); color: var(--acento-texto); }
+/* Hoje: a célula inteira na cor da plataforma; se tem filme, um contorno da mesma cor em volta da capa */
+.ccal-dia.hoje:not(.com-vistos):not(.com-wl) { background: var(--acento-chapado); }
+.ccal-dia.hoje:not(.com-vistos) .ccal-num {
+  left: 0; right: 0; top: 7px; translate: none; width: auto; height: auto; border-radius: 0; background: none; color: var(--sobre-chapado); font-weight: 800;
+}
+.ccal-dia.hoje.com-wl .ccal-num { color: var(--acento-texto); }
+.ccal-dia.hoje.com-vistos { box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px var(--acento-chapado); }
+.ccal-hoje-btn { border-radius: 6px; }
+.ccal-do-mes { border-radius: 8px; background: rgba(245, 179, 1, .1); }
+
+/* Botões da página do dia: canto de 6px, chapados */
+.cdia-assistir { border-radius: 6px; }
+.cdia-icone { border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { .ccal-dia { transition: none; } }
+.ccal-dia.hoje.com-wl { outline: 2px solid var(--acento-chapado); outline-offset: -2px; }
+.ccal-mais { background: var(--acento-chapado); color: var(--sobre-chapado); }
+.cdia-assistir { background: var(--acento-chapado); color: var(--sobre-chapado); }
+.ccal-wl, .ccal-wl-sortear { border-radius: 6px; }
+
+/* ---- Prêmios: cada premiação com a sua cor; o vencedor leva moldura e brilho na cor do prêmio ---- */
+html.celular .calendario-caixa[data-premio="tga"] { --pr: #FF9F59; --pr-rgb: 255, 159, 89; --pr-claro: #FFD3B0; --pr-tinta: #2A1406; --pr-fundo: #0C0805; --pr-papel: #1A1109; }
+html.celular .calendario-caixa[data-premio="baftajogos"], .pp[data-premio="bafta"] { --pr: #CDAE6A; --pr-rgb: 205, 174, 106; --pr-claro: #F1E3C2; --pr-tinta: #1E1707; --pr-fundo: #09090A; --pr-papel: #16140F; }
+html.celular .calendario-caixa[data-premio="oscar"] { --pr: #DDB248; --pr-rgb: 221, 178, 72; --pr-claro: #F6E3A6; --pr-tinta: #201603; --pr-fundo: #080705; --pr-papel: #17130A; }
+html.celular .calendario-caixa[data-premio="globo"] { --pr: #E9C46A; --pr-rgb: 233, 196, 106; --pr-claro: #F8E9BF; --pr-tinta: #1B1404; --pr-fundo: #06080F; --pr-papel: #10131D; }
+html.celular .calendario-caixa[data-premio="critics"] { --pr: #6FB1E8; --pr-rgb: 111, 177, 232; --pr-claro: #CFE6FA; --pr-tinta: #06182A; --pr-fundo: #05080C; --pr-papel: #0E151D; }
+html.celular .calendario-caixa[data-premio="sag"] { --pr: #7FC4A8; --pr-rgb: 127, 196, 168; --pr-claro: #CDEBDF; --pr-tinta: #06201A; --pr-fundo: #050908; --pr-papel: #0E1714; }
+html.celular .calendario-caixa[data-premio="spirit"] { --pr: #FF7A66; --pr-rgb: 255, 122, 102; --pr-claro: #FFD2CA; --pr-tinta: #2A0B06; --pr-fundo: #0C0605; --pr-papel: #1A0F0D; }
+html.celular .calendario-caixa[data-premio="gotham"] { --pr: #D9DCE4; --pr-rgb: 217, 220, 228; --pr-claro: #F2F3F6; --pr-tinta: #121318; --pr-fundo: #070708; --pr-papel: #141416; }
+html.celular .calendario-caixa[data-premio="cannes"] { --pr: #D8B56A; --pr-rgb: 216, 181, 106; --pr-claro: #F3E4BF; --pr-tinta: #1C1505; --pr-fundo: #060912; --pr-papel: #0F1422; }
+html.celular .calendario-caixa[data-premio="veneza"] { --pr: #E8B84A; --pr-rgb: 232, 184, 74; --pr-claro: #F8E3AE; --pr-tinta: #211603; --pr-fundo: #0E0607; --pr-papel: #1C0E10; }
+html.celular .calendario-caixa[data-premio="berlim"] { --pr: #F0483E; --pr-rgb: 240, 72, 62; --pr-claro: #FFC9C4; --pr-tinta: #2A0605; --pr-fundo: #0B0606; --pr-papel: #190E0E; }
+html.celular .calendario-caixa { --pr: var(--dourado); --pr-rgb: 245, 179, 1; --pr-claro: #F8E3AE; --pr-tinta: #201603; }
+html.celular .pr-lista .chip { border-radius: 999px; }
+html.celular .pr-lista .chip .ico, html.celular .pr-aba small, html.celular .pr-resumo .est-kicker, .pr-resumo .pr-status, .pr-cat .pr-status:not(.certo):not(.errado):not(.vazio) { color: var(--pr); }
+html.celular .pr-aba small { text-transform: none; letter-spacing: 0; font-size: 11px; }
+html.celular .pr-aba.ativo, html.celular .pr-aba[aria-pressed="true"] { border-color: var(--pr); }
+html.celular .pr-resumo { border-radius: 8px; background: rgba(var(--pr-rgb), .09); }
+html.celular .pr-numeros span { text-transform: none; letter-spacing: 0; }
+html.celular .pr-numeros .ouro b { color: var(--pr); }
+html.celular .pr-barra { border-radius: 2px; }
+html.celular .pr-barra span { background: var(--pr); }
+html.celular .pr-cat { border-radius: 8px; }
+html.celular .pr-ind { border-radius: 6px; }
+html.celular .pr-ind.venceu {
+  background: rgba(var(--pr-rgb), .1); border-color: var(--pr);
+  box-shadow: 0 0 0 1px rgba(var(--pr-rgb), .5), 0 0 22px rgba(var(--pr-rgb), .35);
+}
+html.celular .pr-ind.venceu .pr-capa { box-shadow: 0 0 0 2px var(--pr); }
+html.celular .selo-venceu { color: var(--pr-claro); }
+html.celular .pr-ind.palpite:not(.venceu) { border-color: rgba(var(--pr-rgb), .55); }
+/* Palpite e Joguei/Vi: botões com canto de 6px, sem caixa alta; marcado = chapado na cor do prêmio */
+html.celular .pr-botao { border-radius: 6px; }
+html.celular .pr-visto.on { background: var(--acento-chapado); border-color: var(--acento-chapado); color: var(--sobre-chapado); }
+html.celular .pr-palpite.on { background: var(--pr); border-color: var(--pr); color: var(--pr-tinta); }
+/* Jogos (TGA, BAFTA Games): cartões na cor da premiação */
+html.celular .pr-card { border-radius: 8px; }
+html.celular .pr-card.venceu { background: rgba(var(--pr-rgb), .1); border-color: var(--pr); box-shadow: 0 0 0 1px rgba(var(--pr-rgb), .5), 0 0 28px rgba(var(--pr-rgb), .35); }
+html.celular .pr-card.palpite:not(.venceu) { border-color: rgba(var(--pr-rgb), .55); }
+html.celular .pr-faixa { border-radius: 4px; background: var(--pr); color: var(--pr-tinta); }
+html.celular .pr-card.venceu .pr-inicial span { color: var(--pr); }
+html.celular .pr-catnome .ico, html.celular .pr-status { color: var(--pr); }
+html.celular .pr-status.certo { color: #5BD69A; }
+html.celular .pr-status.errado { color: var(--perigo); }
+html.celular .pr-status.vazio { color: var(--texto-2); }
+html.celular .pr-seta { border-radius: 6px; }
+html.celular .pr-card-acoes .pr-botao { border-radius: 6px; }

@@ -130,7 +130,7 @@ function capaCelHTML(f, { nota = false } = {}) {
 function destaqueCelHTML(f) {
   const src = srcCapa(f);
   const logo = srcLogo(f);
-  const meta = [...generos(f.info).slice(0, 3), duracaoDe(f) || f.ano].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('<i>•</i>');
+  const meta = [...generos(f.info).slice(0, 3), duracaoDe(f) || f.ano].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
   const naHoje = naWatchlist(f.id);
   return `
     <article class="cel-destaque">
@@ -138,6 +138,7 @@ function destaqueCelHTML(f) {
         ${src ? `<img src="${esc(src)}" alt="">` : ''}
         ${src ? '' : `<span class="cel-destaque-titulo">${logo ? `<img src="${esc(logo)}" alt="${esc(f.titulo)}" data-titulo-texto="${esc(f.titulo)}">` : `<b>${esc(f.titulo)}</b>`}</span>`}
       </button>
+      <h2 class="cel-letreiro">${esc(f.titulo)}</h2>
       <p class="cel-destaque-meta">${meta}</p>
       <div class="cel-destaque-botoes">
         <button class="cel-btn cel-btn-branco" data-cel="assistir" data-id="${f.id}">${icone('Play', { preenchido: true })} Assistir</button>
@@ -207,9 +208,8 @@ function renderCelular() {
   const fileiras = fileirasDoModo(lista);
   const rolagens = new Map([...$$('.cel-fileira', el)].map((s) => [$('h2', s).textContent.trim(), $('.cel-trilho', s).scrollLeft]));
   el.innerHTML = `
-    ${destaque && srcCapa(destaque) ? `<div class="cel-brilho" style="background-image:url('${esc(srcCapa(destaque))}')" aria-hidden="true"></div>` : ''}
-    ${pilulasHTML()}
     ${destaque ? destaqueCelHTML(destaque) : ''}
+    ${pilulasHTML()}
     ${cel.modo.tipo === 'genero' ? `<div class="cel-grade">${lista.map((f) => capaCelHTML(f)).join('')}</div>` : fileiras.map(fileiraHTML).join('')}
     <div class="cel-fim"></div>`;
   // Mantém onde cada fileira estava (um render não pode jogar a fileira de volta ao começo).

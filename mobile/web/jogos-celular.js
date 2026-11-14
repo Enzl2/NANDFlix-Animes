@@ -98,13 +98,14 @@ destaqueCelHTML = (f) => {
   if (!ehJogo(f)) return destaqueCelHTMLFilme(f);
   const src = srcCapa(f);
   const alt = imagemAlternativaDoJogo(f);
-  const meta = [rotuloStatusJogo(statusDoJogo(f)), f.ano, consolesDoJogo(f).slice(0, 3).join(' · ')].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('<i>•</i>');
+  const meta = [rotuloStatusJogo(statusDoJogo(f)), f.ano, consolesDoJogo(f).slice(0, 3).join(' ')].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
   const naHoje = naWatchlist(f.id);
   return `
     <article class="cel-destaque">
       <button class="cel-destaque-capa" data-cel="filme" data-id="${f.id}" aria-label="Ver os detalhes de ${esc(f.titulo)}">
         ${src ? `<img src="${esc(src)}" alt=""${alt ? ` data-alt="${esc(alt)}"` : ''}>` : `<span class="cel-destaque-titulo"><b>${esc(f.titulo)}</b></span>`}
       </button>
+      <h2 class="cel-letreiro">${esc(f.titulo)}</h2>
       <p class="cel-destaque-meta">${meta}</p>
       <div class="cel-destaque-botoes">
         ${f.steam ? `<button class="cel-btn cel-btn-branco" data-cel="steam" data-id="${f.id}">${icone('Gamepad2')} Ver na Steam</button>` : ''}
