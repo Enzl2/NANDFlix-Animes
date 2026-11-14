@@ -62,6 +62,8 @@ const cachePremiosFilme = new Map();
 const premiosTela = $('#premios');
 // cat: a categoria aberta (prêmios de jogos); menu: a lista de categorias está aberta.
 const vista = { premio: 'oscar', numero: null, soFalta: false, cat: null, menu: false };
+// O celular tem o desenho próprio dele (lista de categorias); o PC usa o palco (premios-palco.js).
+const premiosNoCelular = () => document.documentElement.classList.contains('celular');
 
 // ---- Dados ----
 
@@ -404,6 +406,8 @@ async function abrirPremios({ premio = null, numero = null } = {}) {
 function fecharPremios() {
   if (premiosTela.hidden) return;
   premiosTela.hidden = true;
+  vista.menu = false;
+  $('#premios-caixa').classList.remove('pp-cats-abertas');
   $('#premios-caixa').innerHTML = '';
 }
 
@@ -412,14 +416,14 @@ function fecharPremios() {
 // Steam (pelo appid) e, se ela falhar, o cabeçalho da Steam; sem nada, só o nome (e a IGDB
 // completa depois, em completarCapasJogosPremios).
 // busca: o nome do jogo, para achar a capa na IGDB quando o indicado não tem id (só jogos, não pessoas).
-function capaIndicadoHTML(f, ids, titulo, jogo = false, busca = '') {
+function capaIndicadoHTML(f, ids, titulo, jogo = false, busca = '', tamanho = 'small') {
   const imdb = ids.imdb || (f && f.imdbID);
   const steam = ids.steam && Number.isInteger(Number(ids.steam)) ? Number(ids.steam) : 0;
   const daIgdb = jogo ? capaIgdbDoIndicado({ ...ids, busca }) : '';
   const steamBase = steam ? `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${steam}/` : '';
   const src = (f && srcCapa(f)) || (jogo
     ? (daIgdb || (steam ? `${steamBase}library_600x900.jpg` : ''))
-    : (imdb ? `https://images.metahub.space/poster/small/${imdb}/img` : ''));
+    : (imdb ? `https://images.metahub.space/poster/${tamanho}/${imdb}/img` : ''));
   // Jogo: os ids vão junto, para a capa da IGDB entrar se esta falhar (ou se não houver nenhuma).
   const idsJogo = jogo ? ` data-jogo-igdb="${esc(ids.igdb || '')}" data-jogo-slug="${esc(ids.igdbSlug || '')}" data-jogo-busca="${esc(!ids.igdb && !ids.igdbSlug && !(f && srcCapa(f)) ? busca : '')}"` : '';
   const alt = jogo && steamBase && !daIgdb && !(f && srcCapa(f)) ? ` data-capa-alt="${steamBase}header.jpg"` : '';
@@ -779,12 +783,12 @@ premiosTela.addEventListener('click', async (e) => {
   if (e.target === premiosTela) { fecharPremios(); return; }
   const b = e.target.closest('[data-pr]');
   // A lista de categorias fecha com qualquer clique fora dela.
-  if (vista.menu && !(b && b.dataset.pr === 'cat-menu') && !e.target.closest('.pr-catmenu')) fecharMenuCategorias();
+  if (vista.menu && !(b && b.dataset.pr === 'cat-menu') && !e.target.closest('.pr-catmenu, .pp-gaveta')) fecharMenuCategorias();
   if (!b) return;
   const d = premiosDados[vista.premio];
   const c = d && d.cerimonias.find((x) => x.numero === vista.numero);
-  const li = b.closest('.pr-ind, .pr-card');
-  const cat = b.closest('.pr-cat, .pr-cat-atual');
+  const li = b.closest('.pr-ind, .pr-card, .pp-ind');
+  const cat = b.closest('.pr-cat, .pr-cat-atual, .pp-palco');
   const k = c && cat ? c.categorias.find((x) => x.chave === cat.dataset.chave) : null;
   const x = k && li ? k.indicados[Number(li.dataset.i)] : null;
   switch (b.dataset.pr) {
@@ -806,6 +810,7 @@ premiosTela.addEventListener('click', async (e) => {
     case 'cat-ant': irParaCategoria(-1); break;
     case 'cat-prox': irParaCategoria(1); break;
     case 'cat-menu': {
+      if (!premiosNoCelular()) { gavetaPremios(!vista.menu); break; } // PC: a gaveta do palco
       vista.menu = !vista.menu;
       const lista = $('.pr-catmenu', premiosTela);
       if (lista) { lista.hidden = !vista.menu; b.setAttribute('aria-expanded', String(vista.menu)); $('.pr-catmenu-item.ativo', lista)?.scrollIntoView({ block: 'nearest' }); }
@@ -828,6 +833,7 @@ premiosTela.addEventListener('click', async (e) => {
 });
 
 function fecharMenuCategorias() {
+  if (!premiosNoCelular()) { gavetaPremios(false); return; }
   vista.menu = false;
   const lista = $('.pr-catmenu', premiosTela);
   if (lista) lista.hidden = true;
@@ -842,8 +848,8 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   // ← → trocam de categoria nos prêmios de jogos (fora de campos de texto).
-  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && premioEhDeJogo(vista.premio) && !e.altKey && !e.ctrlKey && !e.metaKey
-    && !e.target.closest('input, textarea, select, [contenteditable]') && !e.target.closest('.pr-abas, .pr-lista')) {
+  if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (premioEhDeJogo(vista.premio) || !premiosNoCelular()) && !e.altKey && !e.ctrlKey && !e.metaKey
+    && !e.target.closest('input, textarea, select, [contenteditable]') && !e.target.closest('.pr-abas, .pr-lista, .pp-anos, .pp-premiacoes')) {
     e.preventDefault();
     irParaCategoria(e.key === 'ArrowLeft' ? -1 : 1);
   }
@@ -851,7 +857,7 @@ document.addEventListener('keydown', (e) => {
 
 // A roda do mouse rola de lado a lista de prêmios e as abas dos anos.
 premiosTela.addEventListener('wheel', (e) => {
-  const abas = e.target.closest('.pr-abas, .pr-lista, .pr-fileira');
+  const abas = e.target.closest('.pr-abas, .pr-lista, .pr-fileira, .pp-anos, .pp-premiacoes');
   if (!abas || Math.abs(e.deltaX) > Math.abs(e.deltaY) || abas.scrollWidth <= abas.clientWidth) return;
   e.preventDefault();
   abas.scrollLeft += e.deltaY;
