@@ -228,6 +228,7 @@ async function aplicarTmdb(f, d, { trocarFilme = false } = {}) {
     duracaoDe: d.imdbID || f.imdbID,
     diretor: outroFilme || !f.diretor ? d.diretor || f.diretor : f.diretor,
     logo: d.logo,
+    ...(d.fundo || outroFilme ? { fundo: d.fundo || '' } : {}),
   };
   if (!d.logo) mudancas.logoLocal = '';
   if (d.trailerId && !f.trailerManual) mudancas.trailerId = d.trailerId;
@@ -1386,6 +1387,24 @@ ipcMain.handle('trailer:obter', async (_e, id) => {
       .finally(() => trailersEmBusca.delete(id)));
   }
   return trailersEmBusca.get(id);
+});
+
+// O fundo do destaque da tela inicial: a arte em paisagem do TMDB, buscada uma vez por
+// filme (ou série) e guardada em `fundo`. `fundoEm` marca que já foi procurada.
+const fundosEmBusca = new Map();
+ipcMain.handle('filme:fundo', async (_e, id) => {
+  const filme = filmes.find((f) => f.id === id);
+  if (!filme) return '';
+  if (filme.fundo || filme.fundoEm || ehJogo(filme) || !config.tmdbKey) return filme.fundo || '';
+  const [tmdbId, tipo] = ehSerie(filme) ? [filme.tmdbTvId, 'tv'] : [filme.tmdbId, 'movie'];
+  if (!tmdbId) return '';
+  if (!fundosEmBusca.has(id)) {
+    fundosEmBusca.set(id, tmdb.fundo(config.tmdbKey, tmdbId, tipo)
+      .then((url) => { atualizarFilme(id, { fundo: url || '', fundoEm: new Date().toISOString() }); return url || ''; })
+      .catch(() => '') // sem internet: tenta de novo da próxima vez
+      .finally(() => fundosEmBusca.delete(id)));
+  }
+  return fundosEmBusca.get(id);
 });
 
 ipcMain.handle('trailer:definir', (_e, id, texto) => {
