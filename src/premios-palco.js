@@ -28,10 +28,13 @@ function faixaVenceuHTML(id) {
   return `<span>Venceu</span>${marca}`;
 }
 
-// Quantas colunas cabem bem: até 10 indicados (Melhor Filme no Oscar), uma fileira só, todos à vista;
-// até 18, duas; os festivais (a competição inteira, 20 e tantos filmes) ganham mais fileiras e o palco rola.
+// Quantas colunas cabem bem: até 6 indicados, uma fileira só; de 7 a 10 (Melhor Filme no Oscar), duas
+// fileiras de pôsteres maiores (numa fileira de dez eles ficavam pequenos); os festivais (a competição
+// inteira, 20 e tantos filmes) ganham mais fileiras e o palco rola.
 function gradePalco(n) {
-  const linhas = n <= 10 ? 1 : Math.max(2, Math.ceil(n / 9));
+  // Em janela baixa, duas fileiras ficariam menores que uma: os dez numa fileira só.
+  const baixa = window.innerHeight < 820;
+  const linhas = n <= 6 || (n <= 10 && baixa) ? 1 : n <= 10 ? 2 : Math.max(2, Math.ceil(n / 9));
   return { linhas, colunas: Math.max(1, Math.ceil(n / linhas)) };
 }
 

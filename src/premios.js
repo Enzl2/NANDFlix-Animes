@@ -398,7 +398,7 @@ async function abrirPremios({ premio = null, numero = null } = {}) {
   vista.numero = numero || (vista.numero && premiosDados[premio].cerimonias.some((c) => c.numero === vista.numero) ? vista.numero : cerimoniaPadrao(premio));
   renderPremios();
   Movimento.animar($('#premios-caixa'), [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 260 });
-  $('#premios [data-pr="fechar"]')?.focus({ preventScroll: true });
+  $('#premios [data-pr="fechar"]')?.focus({ preventScroll: true, focusVisible: false });
   // As cerimônias recentes podem ter mudado (indicados novos, vencedores).
   atualizarPremios({ so: premio });
 }

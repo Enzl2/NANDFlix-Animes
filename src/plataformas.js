@@ -200,8 +200,9 @@ function aplicarPlataforma({ noHtml = true } = {}) {
   const icone = $('#marca-icone');
   const chaveIcone = chaveIconePlataforma(p);
   if (icone && icone.dataset.p !== chaveIcone) { icone.innerHTML = iconePlataformaHTML(p); icone.dataset.p = chaveIcone; }
+  // A marca do visual novo: "nand" fino + o resto em negrito na cor da plataforma (sem o ícone).
   const nome = $('#marca-nome');
-  if (nome) nome.textContent = p.nome;
+  if (nome && nome.dataset.p !== p.id) { nome.innerHTML = escolhaMarcaHTML(p); nome.dataset.p = p.id; nome.setAttribute('aria-label', p.nome); }
   const botao = $('#btn-marca');
   if (botao) {
     const varias = plataformasDisponiveis().length > 1;
@@ -349,7 +350,7 @@ function ligarMenuMarca() {
       // As plataformas em cima; o hub embaixo, separado, como "Tudo junto" com os nomes das incluídas.
       const item = (p) => `
         <button class="menu-topo-item marca-menu-item${p.hub ? ' marca-menu-hub' : ''}" role="menuitemradio" aria-checked="${p.id === atual}" data-plataforma="${p.id}">
-          ${iconePlataformaHTML(p, 'marca-menu-icone')}<span class="marca-menu-texto"><b>${p.nome}</b>${p.hub ? `<small>${nomesDoHub()}</small>` : ''}</span>${p.id === atual ? icone('Check') : ''}
+          <span class="marca-menu-texto"><b>${escolhaMarcaHTML(p)}</b>${p.hub ? `<small>${nomesDoHub()}</small>` : ''}</span>${p.id === atual ? icone('Check') : ''}
         </button>`;
       const disp = plataformasDisponiveis();
       const hub = disp.find((p) => p.hub);

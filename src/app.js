@@ -566,6 +566,8 @@ function diaDe(data = new Date()) {
 }
 const hoje = () => diaDe();
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+// 'janeiro' → 'Janeiro' (os chips de mês: só a primeira letra, não 'O Ano Todo').
+const maiusculaInicial = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 function diaLegivel(dia, { comAno = false } = {}) {
   const [a, m, d] = dia.split('-').map(Number);
   return `${d} de ${MESES[m - 1]}${comAno ? ` de ${a}` : ''}`;
@@ -771,7 +773,7 @@ function abrirPainel(id, { voltarPara = null } = {}) {
     Movimento.animar($('.painel-capa', painel), [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
       { duration: 450, delay: 120, fill: 'backwards' });
   }
-  $('[data-p="fechar"]', painel).focus({ preventScroll: true });
+  $('[data-p="fechar"]', painel).focus({ preventScroll: true, focusVisible: false });
 }
 
 // Tab e Shift+Tab ficam dentro do painel enquanto ele está aberto.
@@ -1253,16 +1255,11 @@ function vistosEmHTML(f) {
     </div>`;
 }
 
-// Trailer tocando atrás do título, mudo como no destaque.
+// O trailer da página só fica pronto para o botão Trailer: o fundo é a arte parada
+// (o trailer mudo atrás do título cobria a arte com vinhetas de distribuidora).
 async function carregarTrailerPainel(f) {
-  const id = f.id;
-  const videoId = await trailerDe(id);
-  const capa = $('#painel .painel-capa');
-  if (!videoId || estado.painelId !== id || !capa || capa.dataset.id !== id) return;
-  pausarDestaque('painel');
-  $('.painel-fundo-video', capa).append(iframeTrailer(videoId, 'painel-video', { mudo: !estado.som }));
-  capa.classList.add('com-trailer');
-  $('[data-p="som"]', capa).hidden = false;
+  const videoId = await trailerDe(f.id);
+  if (videoId) f.trailerId = videoId;
 }
 
 // Tira o trailer do painel ao fechar, para ele não continuar tocando escondido.
@@ -2235,9 +2232,6 @@ function mostrarDestaque(opcoes = {}) {
   el.innerHTML = `
     <div class="destaque-fundo"><div class="destaque-fundo-capa"></div><div class="destaque-fundo-arte"></div></div>
     <div class="destaque-sombra"></div>
-    <div class="destaque-controles">
-      <button class="btn-redondo" data-d="som" title="${tituloSom()}" aria-label="${tituloSom()}" hidden>${iconeSom()}</button>
-    </div>
     <div class="destaque-info">
       <div class="destaque-titulo" data-d="detalhes" title="Mais informações">${tituloHTML(f)}</div>
       <div class="destaque-meta" data-info="meta">${destaqueMetaHTML(f)}</div>
@@ -2297,12 +2291,9 @@ async function carregarExtrasDestaque(f, token) {
     if (b) { b.dataset.d = 'detalhes'; b.innerHTML = `${icone('Info')}<span>Ver detalhes</span>`; }
     return;
   }
+  // O fundo fica com a arte parada (o trailer mudo atrás cobria a arte com vinhetas de
+  // distribuidora): o trailer abre no botão "Ver trailer".
   f.trailerId = videoId;
-  const fr = iframeTrailer(videoId, 'destaque-video', { mudo: !estado.som });
-  fr.addEventListener('load', () => setTimeout(aplicarPausaDestaque, 800), { once: true });
-  $('.destaque-fundo', el).append(fr);
-  el.classList.add('com-trailer');
-  $('[data-d="som"]', el).hidden = false;
 }
 
 function fecharDestaque() {
@@ -3487,7 +3478,7 @@ function abrirCalendario(dia = null) {
   renderCalendario();
   Movimento.animar($('#calendario-caixa'), [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 260 });
   if (dia) animarDia(); else animarMes();
-  $('#calendario [data-c="fechar"], #calendario [data-c="voltar"]')?.focus({ preventScroll: true });
+  $('#calendario [data-c="fechar"], #calendario [data-c="voltar"]')?.focus({ preventScroll: true, focusVisible: false });
 }
 
 function fecharCalendario() {
@@ -4360,7 +4351,7 @@ function abrirTierlist() {
   renderTierlist();
   Movimento.animar($('#tierlist-caixa'), [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 260 });
   Movimento.sequencia($$('#tierlist .tl-tier'), { x: -10, duracao: 360, passo: 40, atrasoInicial: 80 });
-  $('#tierlist [data-t="fechar"]')?.focus({ preventScroll: true });
+  $('#tierlist [data-t="fechar"]')?.focus({ preventScroll: true, focusVisible: false });
 }
 
 function fecharTierlist() {
@@ -4958,7 +4949,7 @@ function abrirEstatisticas() {
   estatisticas.hidden = false;
   renderEstatisticas();
   Movimento.animar($('#retrospectiva-caixa'), [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 260 });
-  $('#retrospectiva [data-e="fechar"]')?.focus({ preventScroll: true });
+  $('#retrospectiva [data-e="fechar"]')?.focus({ preventScroll: true, focusVisible: false });
 }
 
 function fecharEstatisticas() {
@@ -5303,7 +5294,7 @@ function topoEstatisticasHTML(p, periodo, anos) {
       <button class="redondo tl-fechar" data-e="fechar" title="Fechar (Esc)" aria-label="Fechar">${icone('X')}</button>
       ${anoSel ? `<div class="chips-linha est-meses" role="radiogroup" aria-label="Mês de ${anoSel}">
         <button class="chip chip-mes${!doMesSo ? ' ativo' : ''}" data-e="periodo" data-periodo="${anoSel}" role="radio" aria-checked="${!doMesSo}">O ano todo</button>
-        ${mesesComFilmes(anoSel, p).map((m) => `<button class="chip chip-mes${m === periodo ? ' ativo' : ''}" data-e="periodo" data-periodo="${m}" role="radio" aria-checked="${m === periodo}">${MESES[Number(m.slice(5)) - 1]}</button>`).join('')}
+        ${mesesComFilmes(anoSel, p).map((m) => `<button class="chip chip-mes${m === periodo ? ' ativo' : ''}" data-e="periodo" data-periodo="${m}" role="radio" aria-checked="${m === periodo}">${maiusculaInicial(MESES[Number(m.slice(5)) - 1])}</button>`).join('')}
       </div>` : ''}
     </div>`;
 }
