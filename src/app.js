@@ -3485,6 +3485,7 @@ function mesVizinho(mes, passo) {
 
 function renderCalendario() {
   const caixa = $('#calendario-caixa');
+  caixa.dataset.corPlat = escopoCal().id; // contornos e selos na cor da plataforma (visual-l4.css)
   caixa.innerHTML = diaCalendario ? paginaDiaHTML(diaCalendario) : mesHTML(mesCalendario);
 }
 
@@ -3640,12 +3641,37 @@ function resumoDoMesHTML(p, c) {
 // Total de episódios assistidos num dia pelos itens `fs` (o selo do dia nos animes).
 const selosEpisodios = (fs, dia) => fs.reduce((n, f) => n + episodiosNoDia(f, dia), 0);
 
+// Próximos episódios das séries em exibição (só no calendário dos animes): { 'AAAA-MM-DD': [itens] }.
+function proximosEpisodiosPorDia(p) {
+  const mapa = new Map();
+  if (!porEpisodio(p)) return mapa;
+  const agora = Date.now();
+  for (const f of itensDaPlataforma(estado.filmes, p)) {
+    const pe = ehSerie(f) && f.status !== 'largado' && f.proximoEpisodio;
+    const quando = pe && new Date(pe.em);
+    if (!quando || !(quando.getTime() > agora)) continue;
+    const dia = `${quando.getFullYear()}-${String(quando.getMonth() + 1).padStart(2, '0')}-${String(quando.getDate()).padStart(2, '0')}`;
+    if (!mapa.has(dia)) mapa.set(dia, []);
+    mapa.get(dia).push(f);
+  }
+  return mapa;
+}
+
+// O selo do dia (embaixo à esquerda): o que aconteceu nele, na cor da plataforma.
+function seloDoDiaHTML(p, vistos, eps) {
+  const n = vistos.length;
+  if (porZerado(p)) return `<span class="cal-selo zerado">${icone('Trophy')}${n > 1 ? `${n} zerados` : 'Zerado'}</span>`;
+  if (porEpisodio(p) && eps) return `<span class="cal-selo">${eps === 1 ? '1 EP' : `${eps} EPs`}</span>`;
+  return `<span class="cal-selo">${icone('Check')}${n > 1 ? `${n} vistos` : 'Visto'}</span>`;
+}
+
 function mesHTML(mes) {
   const p = escopoCal();
   const [ano, m] = mes.split('-').map(Number);
   const deslocamento = new Date(ano, m - 1, 1).getDay();
   const diasNoMes = new Date(ano, m, 0).getDate();
   const porDia = vistosPorDia(p);
+  const proximos = proximosEpisodiosPorDia(p);
   const diaHoje = hoje();
   const mesAtual = diaHoje.slice(0, 7);
   const contagem = contagemDoMes(p, mes, porDia);
@@ -3664,6 +3690,9 @@ function mesHTML(mes) {
     const temDoMes = Boolean(doMes && vistos.includes(doMes));
     if (temDoMes) vistos = [doMes, ...vistos.filter((f) => f !== doMes)];
     const wl = idsWatchlist(dia, p).map(porId).filter(Boolean);
+    // Episódio que ainda vai sair: só num dia sem nada visto (tracejado e apagado).
+    const aSair = vistos.length ? [] : proximos.get(dia) || [];
+    const capasDoDia = vistos.length ? vistos : aSair;
     const eps = porEp ? selosEpisodios(vistos, dia) : 0;
     const ehHoje = dia === diaHoje;
     const classes = ['cal-dia'];
@@ -3671,26 +3700,41 @@ function mesHTML(mes) {
     if (ehHoje) classes.push('hoje');
     if (dia > diaHoje) classes.push('futuro');
     if (vistos.length) classes.push('com-vistos');
+    if (aSair.length) classes.push('a-sair');
     if (wl.length) classes.push('com-wl');
-    if (vistos.length && wl.length) classes.push('misto');
+    if (capasDoDia.length && wl.length) classes.push('misto');
     // O dia com filmes vistos ganha a capa do primeiro como fundo, como um pôster.
-    const fundo = vistos.length ? `<div class="cal-fundo" style="${esc(fundoCapa(vistos[0]))}" aria-hidden="true"></div>` : '';
-    const capas = vistos.length
-      ? `<div class="cal-vistos qtd-${Math.min(vistos.length, 3)}">${vistos.slice(0, 3).map((f) => capinhaHTML(f)).join('')}</div>`
-        + (vistos.length > 3 ? `<span class="cal-mais">+${vistos.length - 3}</span>` : '')
+    const fundo = capasDoDia.length ? `<div class="cal-fundo" style="${esc(fundoCapa(capasDoDia[0]))}" aria-hidden="true"></div>` : '';
+    const capas = capasDoDia.length
+      ? `<div class="cal-vistos qtd-${Math.min(capasDoDia.length, 3)}">${capasDoDia.slice(0, 3).map((f) => capinhaHTML(f)).join('')}</div>`
       : '';
+    const selo = vistos.length ? seloDoDiaHTML(p, vistos, eps)
+      : aSair.length ? `<span class="cal-selo a-sair">${icone('Clock')}${aSair.length > 1 ? `${aSair.length} EPs` : `EP ${aSair[0].proximoEpisodio.numero}`}</span>` : '';
     const pensando = wl.length
-      ? `<div class="cal-wl" title="${jogos ? 'Quero jogar hoje' : 'Pensando em ver'}"><div class="cal-wl-capas">${wl.slice(0, 3).map((f) => capinhaHTML(f, '', dia)).join('')}${wl.length > 3 ? `<span class="cal-mais">+${wl.length - 3}</span>` : ''}</div></div>`
+      ? `<div class="cal-wl" title="${jogos ? 'Quero jogar' : 'Pensando em ver'}"><small>talvez</small><div class="cal-wl-capas">${wl.slice(0, 3).map((f) => capinhaHTML(f, '', dia)).join('')}${wl.length > 3 ? `<span class="cal-mais">+${wl.length - 3}</span>` : ''}</div></div>`
       : '';
-    const rotulo = `${diaLegivel(dia)}${vistos.length ? (porEp ? `: ${eps ? `${eps} episódio${eps === 1 ? '' : 's'}` : 'assistido'}` : jogos ? `: ${vistos.length} zerado${vistos.length === 1 ? '' : 's'}` : `: ${vistos.length} visto${vistos.length === 1 ? '' : 's'}`) : ''}${wl.length ? (jogos ? `, ${wl.length} para jogar` : `, ${wl.length} na watchlist`) : ''}`;
+    const rotulo = `${diaLegivel(dia)}${vistos.length ? (porEp ? `: ${eps ? `${eps} episódio${eps === 1 ? '' : 's'}` : 'assistido'}` : jogos ? `: ${vistos.length} zerado${vistos.length === 1 ? '' : 's'}` : `: ${vistos.length} visto${vistos.length === 1 ? '' : 's'}`) : ''}${aSair.length ? `: ${aSair.map((f) => `${f.titulo}, episódio ${f.proximoEpisodio.numero}`).join('; ')}` : ''}${wl.length ? (jogos ? `, ${wl.length} para jogar` : `, ${wl.length} na watchlist`) : ''}`;
     celulas += `
       <div class="${classes.join(' ')}" data-c="dia" data-dia="${dia}" role="button" tabindex="0" aria-label="${esc(rotulo)}">
         ${fundo}
-        <span class="cal-cabeca"><span class="cal-numero">${d}</span>${ehHoje ? '<span class="cal-hoje">hoje</span>' : ''}${eps ? `<span class="cal-eps" title="${eps} episódio${eps === 1 ? '' : 's'}">${eps} ep.</span>` : ''}</span>
-        ${capas}${pensando}
+        <span class="cal-cabeca"><span class="cal-numero">${d}</span></span>
+        ${capas}${selo}${pensando}
         ${temDoMes ? `<span class="cal-trofeu" title="${esc(rotuloDoMes(p))}: ${esc(doMes.titulo)}">${icone('Trophy')}</span>` : ''}
       </div>`;
   }
+
+  // O resumo do mês em texto corrido: números em negrito, o destaque do mês em dourado.
+  const resumo = [];
+  if (noMes) {
+    if (jogos) resumo.push(`<span><b>${noMes}</b> ${noMes === 1 ? 'jogo zerado' : 'jogos zerados'}</span>`);
+    else if (porEp) {
+      if (contagem.episodios) resumo.push(`<span><b>${contagem.episodios}</b> ${contagem.episodios === 1 ? 'episódio' : 'episódios'}</span>`);
+      resumo.push(`<span><b>${contagem.itens}</b> ${contagem.itens === 1 ? voc('item', undefined, p) : voc('itens', undefined, p)}</span>`);
+    } else resumo.push(`<span><b>${noMes}</b> ${noMes === 1 ? 'filme' : 'filmes'}</span>`);
+  } else resumo.push(`<span>${textoDoTipo(p, 'Nada visto', 'Nada assistido', 'Nada zerado')} em ${esc(MESES[m - 1])} ainda</span>`);
+  if (wlHoje) resumo.push(`<button class="cal-resumo-hoje" data-c="dia" data-dia="${diaHoje}"><b>${wlHoje}</b> ${jogos ? 'para jogar hoje' : 'pensando em ver hoje'}</button>`);
+  if (doMes) resumo.push(`<button class="cal-resumo-destaque" data-c="filme-do-mes" data-mes="${mes}" title="Trocar">${esc(rotuloDoMes(p))}: <b>${esc(doMes.titulo)}</b></button>`);
+  else if (noMes) resumo.push(`<button class="cal-resumo-destaque sem-escolha" data-c="filme-do-mes" data-mes="${mes}">Escolher ${voc('artigo', undefined, p)} ${esc(rotuloDoMes(p).toLowerCase())}</button>`);
 
   const anterior = mesVizinho(mes, -1);
   const proximo = mesVizinho(mes, 1);
@@ -3698,26 +3742,18 @@ function mesHTML(mes) {
     <div class="cal-topo">
       <div class="cal-navegacao">
         <h2>${esc(MESES[m - 1])} <span class="cal-ano">${ano}</span></h2>
-        ${seletorEscopoHTML('calendario')}
         <div class="cal-setas">
-          <button class="redondo" data-c="mes" data-mes="${anterior}" ${anterior < primeiroMes() ? 'disabled' : ''} title="Mês anterior" aria-label="Mês anterior">${icone('ChevronLeft')}</button>
-          <button class="redondo" data-c="mes" data-mes="${proximo}" ${proximo > mesVizinho(mesAtual, 1) ? 'disabled' : ''} title="Próximo mês" aria-label="Próximo mês">${icone('ChevronRight')}</button>
+          <button class="redondo cal-seta" data-c="mes" data-mes="${anterior}" ${anterior < primeiroMes() ? 'disabled' : ''} title="Mês anterior" aria-label="Mês anterior">${icone('ChevronLeft')}</button>
+          <button class="redondo cal-seta" data-c="mes" data-mes="${proximo}" ${proximo > mesVizinho(mesAtual, 1) ? 'disabled' : ''} title="Próximo mês" aria-label="Próximo mês">${icone('ChevronRight')}</button>
         </div>
+        ${seletorEscopoHTML('calendario')}
         ${mes !== mesAtual ? `<button class="btn btn-fantasma cal-ir-hoje" data-c="mes" data-mes="${mesAtual}">Voltar para hoje</button>` : ''}
       </div>
-      <div class="cal-stats">
-        <span class="cal-stat">${icone('Check')} ${noMes
-          ? `${resumoDoMesHTML(p, contagem)} em ${esc(MESES[m - 1])}`
-          : `${textoDoTipo(p, 'Nada visto', 'Nada assistido', 'Nada zerado')} em ${esc(MESES[m - 1])} ainda`}</span>
-        ${doMes
-          ? `<button class="cal-stat ouro" data-c="filme-do-mes" data-mes="${mes}" title="${esc(rotuloDoMes(p))}: ${esc(doMes.titulo)} (clique para trocar)">${icone('Trophy')} <b>${esc(doMes.titulo)}</b></button>`
-          : noMes ? `<button class="cal-stat ouro vazio" data-c="filme-do-mes" data-mes="${mes}" title="Escolher ${voc('artigo', undefined, p)} ${voc('item', undefined, p)} favorito deste mês">${icone('Trophy')} ${esc(rotuloDoMes(p))}</button>` : ''}
-        ${wlHoje ? `<button class="cal-stat roxo" data-c="dia" data-dia="${diaHoje}">${icone('CalendarClock')} <b>${wlHoje}</b> ${jogos ? 'quero jogar hoje' : 'pensando em ver hoje'}</button>` : ''}
-      </div>
+      <div class="cal-resumo">${resumo.join('')}</div>
       <span class="cal-dica-arrasto">${icone('Move')} Solte num dia: hoje ou depois, vai para a watchlist dele; antes de hoje, ${textoDoTipo(p, 'conta como visto nele', 'conta um episódio nele', 'marca como zerado nele')}</span>
-      <button class="redondo cal-fechar" data-c="fechar" title="Fechar (Esc)" aria-label="Fechar">${icone('X')}</button>
+      <button class="redondo cal-seta cal-fechar" data-c="fechar" title="Fechar (Esc)" aria-label="Fechar">${icone('X')}</button>
     </div>
-    <div class="cal-semana" aria-hidden="true">${DIAS_SEMANA.map((d) => `<span>${d}</span>`).join('')}</div>
+    <div class="cal-semana" aria-hidden="true">${DIAS_SEMANA.map((d) => `<span>${d.toLowerCase()}</span>`).join('')}</div>
     <div class="cal-grade">${celulas}</div>`;
 }
 
@@ -3812,7 +3848,7 @@ function paginaDiaHTML(dia) {
           ? `<div class="cal-filmes">${watchlist.map((f) => filmeDoDiaHTML(f, { pensandoEm: dia })).join('')}</div>`
           : `<p class="cal-vazio">${ehHoje
             ? `${voc('Nenhum', undefined, p)} ainda. Use o ${icone('CalendarClock')} na capa ${vocTexto('de {um}', p)}, na prévia ou nos detalhes para colocar aqui o que você ${jogos ? 'quer jogar' : 'está pensando em ver'} hoje. A lista some quando o dia vira, às 5h.`
-            : `${voc('Nenhum', undefined, p)} planejado para este dia. No mês, arraste uma capa da watchlist para cá.`}</p>`}
+            : `${voc('Nenhum', undefined, p)} planejado para este dia.`}</p>`}
       </section>` : ''}
     ${futuro ? '' : `
     <section class="cal-secao cal-secao-vistos">
@@ -4934,14 +4970,15 @@ function ranking(valores, max = 8) {
   return [...m].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]), 'pt')).slice(0, max);
 }
 
-// Colunas de um valor só (uma cor): a maior leva o número em cima; as outras mostram ao passar o mouse.
+// Colunas de um valor só (uma cor), com o número em cima de cada uma (sem dica no hover).
+// A coluna do período atual (`atual`: este mês, este ano) fica na cor cheia; sem ela, a maior.
 function colunasHTML(itens, rotuloDica) {
   const max = Math.max(1, ...itens.map((i) => i.valor));
   const maior = itens.reduce((m, i) => (i.valor > m.valor ? i : m), itens[0]);
+  const temAtual = itens.some((i) => i.atual);
   return `<div class="est-colunas" style="--n:${itens.length}">${itens.map((i) => `
-    <div class="est-col" tabindex="0" aria-label="${esc(`${i.rotuloLongo || i.rotulo}: ${rotuloDica(i.valor)}`)}">
-      <span class="est-dica">${esc(i.rotuloLongo || i.rotulo)} · ${esc(rotuloDica(i.valor))}</span>
-      <div class="est-trilho">${i === maior && i.valor ? `<span class="est-valor">${i.valor}</span>` : ''}<div class="est-barra" style="height:${(i.valor / max) * 100}%"></div></div>
+    <div class="est-col${(temAtual ? i.atual : i === maior) ? ' atual' : ''}" tabindex="0" aria-label="${esc(`${i.rotuloLongo || i.rotulo}: ${rotuloDica(i.valor)}`)}">
+      <div class="est-trilho">${i.valor ? `<span class="est-valor">${i.valor}</span>` : ''}<div class="est-barra" style="height:${(i.valor / max) * 100}%"></div></div>
       <span class="est-rotulo">${esc(i.rotulo)}</span>
     </div>`).join('')}</div>`;
 }
@@ -4963,8 +5000,46 @@ function capasEstHTML(filmes, legenda = () => '') {
     <button class="est-capa" data-e="filme" data-id="${f.id}" title="${esc(f.titulo)}">${capaHTML(f)}<span>${legenda(f)}</span></button>`).join('')}</div>`;
 }
 
+// O destaque das estatísticas: um número grande, uma frase curta, o botão dos stories e
+// até três capas em leque (a primeira da lista fica no meio, na frente).
+function estDestaqueHTML({ numero, frase, story = false, capas = [] }) {
+  const tres = capas.filter(Boolean).slice(0, 3);
+  const leque = tres.length === 3 ? [tres[1], tres[0], tres[2]] : tres;
+  return `
+    <section class="est-destaque">
+      <div>
+        <p class="est-numerao">${numero}</p>
+        <p class="est-frase">${frase}</p>
+        ${story ? `<button class="btn btn-primario est-story" data-e="story">${icone('ImagePlus')} Criar stories</button>` : ''}
+      </div>
+      ${leque.length ? `<div class="est-leque qtd-${leque.length}">${leque.map((f) => `<button data-e="filme" data-id="${f.id}" title="${esc(f.titulo)}" aria-label="${esc(f.titulo)}">${capaHTML(f)}</button>`).join('')}</div>` : ''}
+    </section>`;
+}
+// Os outros números, em colunas numa linha só: [valor, texto]; sem valor, a coluna sai.
+function estFatosHTML(fatos) {
+  const lista = fatos.filter((x) => x && x[0] !== '' && x[0] !== null && x[0] !== undefined);
+  return `<div class="est-fatos" style="--n:${lista.length}">${lista.map(([v, t]) => `<span><b>${v}</b>${t}</span>`).join('')}</div>`;
+}
+// Horas em dias inteiros, para a frase do destaque ("Quase sete dias inteiros."); menos de um dia, nada.
+const EST_POR_EXTENSO = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez'];
+function estFraseDias(horas) {
+  const dias = horas / 24;
+  if (!(dias >= 0.75)) return '';
+  const ext = (n) => (n <= 10 ? EST_POR_EXTENSO[n] : n.toLocaleString('pt-BR'));
+  const n = Math.floor(dias);
+  const resto = dias - n;
+  let t;
+  if (resto >= 0.75) t = n + 1 === 1 ? 'quase um dia inteiro' : `quase ${ext(n + 1)} dias inteiros`;
+  else if (resto < 0.25) t = n === 1 ? 'um dia inteiro' : `${ext(n)} dias inteiros`;
+  else t = n === 1 ? 'mais de um dia inteiro' : `mais de ${ext(n)} dias inteiros`;
+  return `${t.charAt(0).toUpperCase()}${t.slice(1)}.`;
+}
+// O último dia registrado de um item (para escolher as capas mais recentes).
+const ultimoDiaEst = (f) => [...(f.vistoEm || []), ...Object.keys(f.epDias || {}), f.zeradoEm || ''].sort().pop() || '';
+
 function renderEstatisticas() {
   const p = escopoEst();
+  $('#retrospectiva-caixa').dataset.corPlat = p.id; // o acento das estatísticas é o da plataforma (visual-l4.css)
   if (porZerado(p)) { renderEstatisticasJogos(p); return; }
   if (porEpisodio(p)) { renderEstatisticasAnimes(p); return; }
   const caixa = $('#retrospectiva-caixa');
@@ -4992,11 +5067,11 @@ function renderEstatisticas() {
   const porMes = meses.map((m) => {
     const n = d.sessoes.filter((s) => s.dia.startsWith(m)).length;
     const [a, mm] = m.split('-').map(Number);
-    return { rotulo: periodo === 'tudo' && meses.length > 12 ? `${nomeMes(mm - 1)}/${String(a).slice(2)}` : nomeMes(mm - 1), rotuloLongo: mesLegivel(m), valor: n };
+    return { rotulo: periodo === 'tudo' && meses.length > 12 ? `${nomeMes(mm - 1)}/${String(a).slice(2)}` : nomeMes(mm - 1), rotuloLongo: mesLegivel(m), valor: n, atual: m === hoje().slice(0, 7) };
   });
   const porDia = !doMesSo ? [] : Array.from({ length: new Date(Number(periodo.slice(0, 4)), Number(periodo.slice(5, 7)), 0).getDate() }, (_, i) => {
     const dia = `${periodo}-${String(i + 1).padStart(2, '0')}`;
-    return { rotulo: String(i + 1), rotuloLongo: diaLegivel(dia), valor: d.sessoes.filter((x) => x.dia === dia).length };
+    return { rotulo: String(i + 1), rotuloLongo: diaLegivel(dia), valor: d.sessoes.filter((x) => x.dia === dia).length, atual: dia === hoje() };
   });
 
   const notas = Array.from({ length: 10 }, (_, i) => (i + 1) / 2).map((n) => ({
@@ -5009,29 +5084,21 @@ function renderEstatisticas() {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([m]) => ({ m, f: filmeDoMes(m) })).filter((x) => x.f);
   const diretorTop = ranking(d.lista.flatMap((f) => nomesDiretores(f.diretor)), 1)[0];
-  const paisTop = ranking(d.lista.map(paisPrincipal), 1)[0];
-  const generoTop = ranking(d.lista.flatMap((f) => generos(f.info)), 1)[0];
-
-  const frase = d.lista.length
-    ? `${periodo === 'tudo' ? 'Até agora' : `Em ${nomePeriodo(periodo)}`}, você viu <b>${numero(d.lista.length)} filme${d.lista.length === 1 ? '' : 's'}</b>${horas ? `, somando <b>${numero(horas)} hora${horas === 1 ? '' : 's'}</b> de cinema` : ''}.`
-      + (diretorTop ? ` Quem mais apareceu foi <b>${esc(diretorTop[0])}</b>` + (paisTop ? `, e o país que mais rendeu foi <b>${esc(paisTop[0])}</b>` : '') + '.' : '')
-      + (generoTop ? ` Gênero do período: <b>${esc(generoTop[0])}</b>.` : '')
-    : 'Nenhum filme visto neste período ainda.';
-
-  const tile = (rotulo, valor, extra = '') => `<div class="est-tile"><span>${rotulo}</span><b>${valor}</b>${extra ? `<small>${extra}</small>` : ''}</div>`;
-  caixa.innerHTML = topoEstatisticasHTML(p, periodo, anos) + `
-    <section class="est-hero">
-      <span class="est-kicker">${icone('Sparkles')} ${periodo === 'tudo' ? 'Sua retrospectiva' : `Retrospectiva de ${nomePeriodo(periodo)}`}</span>
-      <p>${frase}</p>
-      ${d.lista.length && plataformaTem('retrospectiva') ? `<button class="btn btn-primario est-story" data-e="story">${icone('ImagePlus')} Criar stories da retrospectiva</button>` : ''}
-    </section>
-    <div class="est-tiles">
-      ${tile('Filmes vistos', numero(d.lista.length), d.sessoes.length > d.lista.length ? `${numero(d.sessoes.length)} sessões` : '')}
-      ${tile('Horas de filme', numero(horas), d.lista.length ? `${Math.round(d.minutos / Math.max(1, d.sessoes.length + d.lista.filter((f) => !(f.vistoEm || []).length).length))} min em média` : '')}
-      ${tile('Dias com filme', numero(d.dias.length), d.sequencia > 1 ? `${d.sequencia} dias seguidos no máximo` : '')}
-      ${tile('Sua nota média', d.media ? `${icone('Star', { preenchido: true })}${notaLegivel(Math.round(d.media * 10) / 10)}` : '—', d.comNota.length ? `${d.comNota.length} com nota` : 'dê notas nos detalhes')}
-      ${tile('Revistos', numero(d.revistos.length))}
-    </div>
+  // O número grande: filmes vistos; a frase diz o período e quanto tempo isso dá.
+  const quando = periodo === 'tudo' ? 'até agora' : `em ${esc(nomePeriodo(periodo))}`;
+  const capas = [...d.lista].sort((a, b) => (b.minhaNota || 0) - (a.minhaNota || 0) || ultimoDiaEst(b).localeCompare(ultimoDiaEst(a)));
+  caixa.innerHTML = topoEstatisticasHTML(p, periodo, anos) + estDestaqueHTML({
+    numero: numero(d.lista.length),
+    frase: `${d.lista.length === 1 ? 'filme visto' : 'filmes vistos'} ${quando}. ${estFraseDias(d.minutos / 60)}`.trim(),
+    story: d.lista.length && plataformaTem('retrospectiva'),
+    capas,
+  }) + estFatosHTML([
+    [`${numero(horas)} h`, `de cinema${d.lista.length ? `, ${Math.round(d.minutos / Math.max(1, d.sessoes.length + d.lista.filter((f) => !(f.vistoEm || []).length).length))} min em média` : ''}`],
+    [numero(d.dias.length), `dia${d.dias.length === 1 ? '' : 's'} com filme${d.sequencia > 1 ? `, ${d.sequencia} seguidos no máximo` : ''}`],
+    [d.media ? notaLegivel(Math.round(d.media * 10) / 10) : '', `de nota média, ${d.comNota.length} com nota`],
+    [numero(d.revistos.length), d.revistos.length === 1 ? 'filme revisto' : 'filmes revistos'],
+    [diretorTop ? esc(diretorTop[0]) : '', 'o diretor que mais apareceu'],
+  ]) + `
     <div class="est-grade">
       <section class="est-cartao est-largo">
         <h3>${doMesSo ? 'Filmes por dia' : 'Filmes por mês'}</h3>
@@ -5050,7 +5117,7 @@ function renderEstatisticas() {
       ${doMes.length ? `<section class="est-cartao est-largo"><h3>${icone('Trophy')} Filmes do mês</h3>${capasEstHTML(doMes.map((x) => x.f), (f) => esc(mesLegivel(doMes.find((x) => x.f === f).m)))}</section>` : ''}
       ${maisRevistos.length ? `<section class="est-cartao est-largo"><h3>Os que você mais reviu</h3>${capasEstHTML(maisRevistos, (f) => `${f.vistoEm.length}×`)}</section>` : ''}
     </div>`;
-  Movimento.sequencia($$('#retrospectiva .est-tile, #retrospectiva .est-cartao'), { y: 10, duracao: 380, passo: 30, atrasoInicial: 60 });
+  Movimento.sequencia($$('#retrospectiva .est-destaque, #retrospectiva .est-fatos, #retrospectiva .est-cartao'), { y: 10, duracao: 380, passo: 30, atrasoInicial: 60 });
 }
 
 
@@ -5132,11 +5199,11 @@ function renderEstatisticasAnimes(p) {
   const soma = (filtro) => d.sessoes.filter(filtro).reduce((n, s) => n + s.eps, 0);
   const porMes = meses.map((m) => {
     const [a, mm] = m.split('-').map(Number);
-    return { rotulo: periodo === 'tudo' && meses.length > 12 ? nomeMes(mm - 1) + '/' + String(a).slice(2) : nomeMes(mm - 1), rotuloLongo: mesLegivel(m), valor: soma((s) => s.dia.startsWith(m)) };
+    return { rotulo: periodo === 'tudo' && meses.length > 12 ? nomeMes(mm - 1) + '/' + String(a).slice(2) : nomeMes(mm - 1), rotuloLongo: mesLegivel(m), valor: soma((s) => s.dia.startsWith(m)), atual: m === hoje().slice(0, 7) };
   });
   const porDia = !doMesSo ? [] : Array.from({ length: new Date(Number(periodo.slice(0, 4)), Number(periodo.slice(5, 7)), 0).getDate() }, (_, i) => {
     const dia = periodo + '-' + String(i + 1).padStart(2, '0');
-    return { rotulo: String(i + 1), rotuloLongo: diaLegivel(dia), valor: soma((s) => s.dia === dia) };
+    return { rotulo: String(i + 1), rotuloLongo: diaLegivel(dia), valor: soma((s) => s.dia === dia), atual: dia === hoje() };
   });
   const dicaEp = (n) => n + ' episódio' + (n === 1 ? '' : 's');
 
@@ -5149,32 +5216,25 @@ function renderEstatisticasAnimes(p) {
     .filter(([m]) => periodo === 'tudo' || m.startsWith(periodo))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([m]) => ({ m, f: itemDoMes(m, p) })).filter((x) => x.f);
-  const generoTop = ranking(d.itens.flatMap((f) => generos(f.info)), 1)[0];
   const estudioTop = ranking(d.itens.flatMap(nomesEstudios), 1)[0];
 
-  const quando = periodo === 'tudo' ? 'Até agora' : 'Em ' + nomePeriodo(periodo);
-  const frase = d.itens.length
-    ? quando + ', você assistiu ' + (d.episodios ? '<b>' + numero(d.episodios) + ' episódio' + plural(d.episodios, '', 's') + '</b> de ' : '') + '<b>' + numero(d.itens.length) + ' ' + (d.itens.length === 1 ? voc('item', undefined, p) : voc('itens', undefined, p)) + '</b>'
-      + (horas ? ', somando <b>' + numero(horas) + ' hora' + plural(horas, '', 's') + '</b> de tela' : '') + '.'
-      + (estudioTop ? ' O estúdio que mais apareceu foi <b>' + esc(estudioTop[0]) + '</b>.' : '')
-      + (generoTop ? ' Gênero do período: <b>' + esc(generoTop[0]) + '</b>.' : '')
-    : 'Nenhum anime assistido neste período ainda.';
-
-  const tile = (rotulo, valor, extra = '') => '<div class="est-tile"><span>' + rotulo + '</span><b>' + valor + '</b>' + (extra ? '<small>' + extra + '</small>' : '') + '</div>';
-  const mediaMin = d.episodios ? Math.round(d.minutos / d.episodios) : 0;
-  caixa.innerHTML = topoEstatisticasHTML(p, periodo, anos) + `
-    <section class="est-hero">
-      <span class="est-kicker">${icone('Sparkles')} ${periodo === 'tudo' ? 'Seus animes' : 'Animes de ' + esc(nomePeriodo(periodo))}</span>
-      <p>${frase}</p>
-      ${d.itens.length && (p.recursos || []).includes('retrospectiva') ? `<button class="btn btn-primario est-story" data-e="story">${icone('ImagePlus')} Criar stories da retrospectiva</button>` : ''}
-    </section>
-    <div class="est-tiles">
-      ${tile(voc('Itens', undefined, p) + ' assistidos', numero(d.itens.length), d.completos.length ? numero(d.completos.length) + ' completo' + plural(d.completos.length, '', 's') : '')}
-      ${tile('Episódios', numero(d.episodios), periodo !== 'tudo' && d.sessoes.some((s) => !s.eps) ? 'sem os marcados de uma vez' : '')}
-      ${tile('Horas de anime', numero(horas), mediaMin ? '~' + mediaMin + ' min por episódio' : '')}
-      ${tile('Dias com anime', numero(d.dias.length), d.sequencia > 1 ? d.sequencia + ' dias seguidos no máximo' : '')}
-      ${tile('Sua nota média', d.media ? icone('Star', { preenchido: true }) + notaLegivel(Math.round(d.media * 10) / 10) : '—', d.comNota.length ? d.comNota.length + ' com nota' : 'dê notas nos detalhes')}
-    </div>
+  // O número grande: episódios (sem episódios datados no período, os animes assistidos).
+  const quando = periodo === 'tudo' ? 'até agora' : 'em ' + esc(nomePeriodo(periodo));
+  const nomeItens = (n) => (n === 1 ? voc('item', undefined, p) : voc('itens', undefined, p));
+  const capas = d.maisAssistidos.length ? d.maisAssistidos.map(([f]) => f)
+    : [...d.itens].sort((a, b) => ultimoDiaEst(b).localeCompare(ultimoDiaEst(a)));
+  caixa.innerHTML = topoEstatisticasHTML(p, periodo, anos) + estDestaqueHTML({
+    numero: numero(d.episodios || d.itens.length),
+    frase: `${d.episodios ? `episódio${plural(d.episodios, '', 's')} de anime` : `${nomeItens(d.itens.length)} assistido${plural(d.itens.length, '', 's')}`} ${quando}. ${estFraseDias(d.minutos / 60)}`.trim(),
+    story: d.itens.length && (p.recursos || []).includes('retrospectiva'),
+    capas,
+  }) + estFatosHTML([
+    [`${numero(horas)} h`, 'assistindo'],
+    [numero(d.dias.length), `dia${plural(d.dias.length, '', 's')} com episódio${d.sequencia > 1 ? `, ${d.sequencia} seguidos no máximo` : ''}`],
+    [d.media ? notaLegivel(Math.round(d.media * 10) / 10) : '', 'de nota média, ' + d.comNota.length + ' com nota'],
+    [numero(d.itens.length), `${nomeItens(d.itens.length)} assistido${plural(d.itens.length, '', 's')}${d.completos.length ? `, ${numero(d.completos.length)} completo${plural(d.completos.length, '', 's')}` : ''}`],
+    [estudioTop ? esc(estudioTop[0]) : '', 'o estúdio que mais apareceu'],
+  ]) + `
     <div class="est-grade">
       <section class="est-cartao est-largo">
         <h3>${doMesSo ? 'Episódios por dia' : 'Episódios por mês'}</h3>
@@ -5194,7 +5254,7 @@ function renderEstatisticasAnimes(p) {
       ${doMes.length ? `<section class="est-cartao est-largo"><h3>${icone('Trophy')} ${esc(rotuloDoMes(p))}</h3>${capasEstHTML(doMes.map((x) => x.f), (f) => esc(mesLegivel(doMes.find((x) => x.f === f).m)))}</section>` : ''}
     </div>
     <p class="est-nota-rodape">Horas = episódios × a duração de cada episódio na AniList (24 min quando não há). Episódios marcados de uma vez, sem dia, só entram em “Tudo”.</p>`;
-  Movimento.sequencia($$('#retrospectiva .est-tile, #retrospectiva .est-cartao'), { y: 10, duracao: 380, passo: 30, atrasoInicial: 60 });
+  Movimento.sequencia($$('#retrospectiva .est-destaque, #retrospectiva .est-fatos, #retrospectiva .est-cartao'), { y: 10, duracao: 380, passo: 30, atrasoInicial: 60 });
 }
 
 // O alto da tela de estatísticas (título, plataforma no hub, períodos, fechar, meses): igual para filmes e animes.
