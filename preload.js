@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('api', {
   detalhesTmdb: chamar('tmdb:detalhes'),
   capasTmdb: chamar('tmdb:capas'),
   relacionadosTmdb: chamar('tmdb:relacionados'),
+  arteTmdb: chamar('tmdb:arte'),
   testarChaveTmdb: chamar('tmdb:testarChave'),
   testarChave: chamar('omdb:testarChave'),
   buscarCapas: chamar('capas:buscar'),

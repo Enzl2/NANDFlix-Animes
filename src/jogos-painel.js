@@ -256,6 +256,7 @@ function atualizarBotaoSteamJogo(f) {
   if (tempo) { const t = tempoSteamJogoHTML(e); tempo.innerHTML = t; tempo.hidden = !t; }
   const sub = document.querySelector('#painel .jogo-loja-steam small');
   if (sub) sub.textContent = subtituloSteamJogo(e);
+  atualizarPaginaJogoSteam(f, e);
 }
 
 const subtituloSteamJogo = (e) => (e && e.tipo === 'steam' ? (e.instalado ? 'Instalado' : e.naBiblioteca === true ? 'Na sua biblioteca' : 'Loja da Steam') : '');
@@ -374,6 +375,7 @@ async function adicionarJogoFora(f, botao) {
 // ---------- Desenho ----------
 
 function renderPainelJogo(f) {
+  if (!paginaJogoNoCelular()) { renderPaginaJogo(f); return; } // PC: a página nova (abaixo)
   $('#painel').setAttribute('aria-label', 'Detalhes do jogo');
   const topo = $('#painel .painel-capa');
   if (!topo || topo.dataset.id !== f.id) {
@@ -463,6 +465,7 @@ function foraDaListaHTML(f) {
 
 // O que é do usuário: status (como nos animes), a data em que zerou, nota, tags e remover.
 function usuarioJogoHTML(f) {
+  if (!paginaJogoNoCelular()) return usuarioPaginaJogoHTML(f);
   const status = ROTULOS_STATUS_JOGO[f.status] ? f.status : 'quero';
   const zerado = STATUS_JOGO_ZERADO.includes(status);
   const tags = Array.isArray(f.tags) ? f.tags : [];
@@ -561,7 +564,7 @@ async function carregarMaisDoDesenvolvedor(f) {
   let html = devs.map((d, i) => {
     const r = respostas[i];
     const jogos = r && r.ok && r.dados ? (r.dados.jogos || []).filter((j) => Number(j.igdb) !== Number(f.igdb)) : [];
-    return jogos.length ? fileiraDevHTML(`Mais de ${(r.dados.empresa && r.dados.empresa.nome) || d.nome}`, jogos) : '';
+    return jogos.length ? fileiraDevHTML(`Mais da ${(r.dados.empresa && r.dados.empresa.nome) || d.nome}`, jogos) : '';
   }).join('');
   if (!html && respostas.some((r) => r && !r.ok && r.erro && r.erro.tipo === 'chave')) {
     html = `<p class="jogo-dev-aviso">${icone('Info')} Com as chaves do IGDB em Configurações, aparecem aqui os outros jogos de ${esc(devs.map((d) => d.nome).join(', '))}.</p>`;
@@ -631,7 +634,7 @@ function zereiBotaoHTML(f) {
 // A estrela de favorito (como nos filmes): os favoritos aparecem no filtro e na fileira de favoritos.
 function favJogoBotaoHTML(f) {
   const dica = f.favorito ? 'Tirar dos favoritos' : 'Favoritar';
-  return `<button class="redondo jogo-fav${f.favorito ? ' fav-on' : ''}" data-j="favorito" data-rotulo="Favorito" aria-pressed="${Boolean(f.favorito)}" title="${dica}" aria-label="${dica}">${icone('Star', { preenchido: Boolean(f.favorito) })}</button>`;
+  return `<button class="redondo jogo-fav${paginaJogoNoCelular() ? '' : ' pj-quadrado'}${f.favorito ? ' fav-on' : ''}" data-j="favorito" data-rotulo="Favorito" aria-pressed="${Boolean(f.favorito)}" title="${dica}" aria-label="${dica}">${icone('Star', { preenchido: Boolean(f.favorito) })}</button>`;
 }
 async function alternarFavJogo(f) {
   await alternar(f.id, 'favorito');
@@ -661,6 +664,7 @@ async function mudarStatusJogo(f, status) {
   await salvarJogo(f, m);
   renderUsuarioJogo(f, '[data-j-status]');
   atualizarZereiJogo(f);
+  atualizarStatusPaginaJogo(f);
   if (STATUS_JOGO_ZERADO.includes(status) && !STATUS_JOGO_ZERADO.includes(antes)) {
     aviso(`“${f.titulo}”: ${status === 'cem' ? '100%' : 'zerado'} em ${diaLegivel(f.zeradoEm)}! Dá para mudar o dia ao lado do status.`, { tipo: 'ok', duracao: 6000 });
   }
@@ -730,4 +734,276 @@ if (typeof document !== 'undefined' && document.getElementById('painel')) {
   ligarPainelJogo(document.getElementById('painel'));
   document.addEventListener('error', trocarFundoQueFalhou, true);
   if (window.api && typeof window.api.aoBibliotecaSteam === 'function') window.api.aoBibliotecaSteam(receberBibliotecaSteam);
+}
+
+// ---------- A página do jogo no PC (visual novo) ----------
+//
+// O celular segue com o painel acima (mobile/web/detalhes.js rearruma). No PC:
+// só o Jogar como primário; "Ver na Steam" com o logotipo; o status num seletor
+// único ("Zerado em 3 de nov. / Zerei", abre um menu); favorito; tags com canto
+// de 4px; "Onde jogar" com a Steam primeiro; o HowLongToBeat numa régua só, com
+// o seu tempo marcado em cima; e "Mais da <desenvolvedora>" embaixo.
+
+function paginaJogoNoCelular() { return Boolean(typeof window !== 'undefined' && window.api && window.api.celular); }
+
+const MESES_CURTOS_JOGO = ['jan.', 'fev.', 'mar.', 'abr.', 'maio', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+// "3 de nov." (e o ano, se não for o atual).
+function diaCurtoJogo(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return '';
+  const ano = Number(m[1]) !== new Date().getFullYear() ? ` de ${m[1]}` : '';
+  return `${Number(m[3])} de ${MESES_CURTOS_JOGO[Number(m[2]) - 1]}${ano}`;
+}
+
+// O que o seletor de status mostra: { rotulo: 'Zerei', detalhe: 'Zerado em 3 de nov.' }.
+function textoStatusJogo(f) {
+  const status = ROTULOS_STATUS_JOGO[f.status] ? f.status : 'quero';
+  const dia = diaCurtoJogo(f.zeradoEm);
+  let detalhe = 'Status';
+  if (status === 'zerado') detalhe = dia ? `Zerado em ${dia}` : 'Zerado';
+  else if (status === 'cem') detalhe = dia ? `100% em ${dia}` : 'Completo';
+  return { status, rotulo: ROTULOS_STATUS_JOGO[status], detalhe };
+}
+
+function statusPaginaJogoHTML(f) {
+  const t = textoStatusJogo(f);
+  const zerado = STATUS_JOGO_ZERADO.includes(t.status);
+  return `<div class="pj-status" data-pj-status>
+      <button class="pj-status-btn" data-j="status-menu" aria-haspopup="menu" aria-expanded="false" title="Mudar o status">
+        <span class="pj-status-rot"><small>${esc(t.detalhe)}</small><b>${esc(t.rotulo)}</b></span>${icone('ChevronDown')}
+      </button>
+      <div class="pj-status-menu" role="menu" hidden>
+        ${Object.entries(ROTULOS_STATUS_JOGO).map(([k, r]) => `<button role="menuitemradio" aria-checked="${k === t.status}" class="${k === t.status ? 'atual' : ''}" data-j="status" data-status="${k}">${esc(r)}${k === t.status ? icone('Check') : ''}</button>`).join('')}
+        ${zerado ? `<label class="pj-status-dia">${t.status === 'cem' ? 'Fez 100% em' : 'Zerou em'}<input type="date" data-j-zerado value="${esc(f.zeradoEm || '')}" max="${hoje()}" aria-label="Dia em que zerou"></label>` : ''}
+      </div>
+    </div>`;
+}
+
+function atualizarStatusPaginaJogo(f) {
+  const el = document.querySelector('#painel [data-pj-status]');
+  if (el && estado.painelId === f.id) el.outerHTML = statusPaginaJogoHTML(f);
+}
+
+function fecharMenuStatusJogo() {
+  const menu = document.querySelector('#painel .pj-status-menu:not([hidden])');
+  if (!menu) return;
+  menu.hidden = true;
+  menu.parentElement.querySelector('[data-j="status-menu"]')?.setAttribute('aria-expanded', 'false');
+}
+
+// "Ver na Steam" (com o logotipo): só quando o primário não é já a loja.
+function verNaSteamJogoHTML(f, e) {
+  if (!e || e.tipo !== 'steam' || e.acao === 'web' || e.acao === 'loja') return '';
+  return `<button class="btn btn-pj pj-vidro pj-ver-steam" data-j="loja-steam" title="Abre a página do jogo na loja da Steam">${MARCA_STEAM_JOGO}Ver na Steam</button>`;
+}
+
+// "2020  Ação, Indie, RPG  22 h para zerar  Supergiant Games"
+function metaPaginaJogoHTML(f) {
+  const partes = [];
+  if (f.ano) partes.push(`<span class="pj-ano">${esc(f.ano)}</span>`);
+  if ((f.generos || []).length) partes.push(`<span>${esc(f.generos.slice(0, 3).join(', '))}</span>`);
+  const t = temposHltb(f);
+  const zerar = t.historia || t.extras;
+  if (zerar) partes.push(`<span title="Tempo para zerar (HowLongToBeat, pela IGDB)">${esc(horasHltb(zerar))} para zerar</span>`);
+  const dev = nomesJogo((f.desenvolvedores || []).slice(0, 1));
+  if (dev) partes.push(`<span>${esc(dev)}</span>`);
+  return partes.join('') || '&nbsp;';
+}
+
+// Tags e nota (o bloco que se redesenha a cada mudança: data-jogo-usuario).
+function usuarioPaginaJogoHTML(f) {
+  const tags = Array.isArray(f.tags) ? f.tags : [];
+  const sugestoes = sugestoesTagsJogo(f, estado.filmes);
+  return `
+    <div class="pj-usuario" data-jogo-usuario>
+      <section>
+        <h3 class="pcf-rotulo">Tags</h3>
+        <div class="pj-tags">
+          ${tags.map((t) => `<span class="pj-tag">${esc(t)}<button data-j="tirar-tag" data-tag="${esc(t)}" title="Tirar a tag" aria-label="Tirar a tag ${esc(t)}">${icone('X')}</button></span>`).join('')}
+          <input class="pj-tag-nova" data-j-tag list="jogo-tags-sugestoes" maxlength="40" placeholder="+ tag" aria-label="Nova tag" enterkeyhint="done">
+          <datalist id="jogo-tags-sugestoes">${sugestoes.map((t) => `<option value="${esc(t)}">`).join('')}</datalist>
+        </div>
+        ${sugestoes.length ? `<div class="pj-tags-sugeridas">${sugestoes.slice(0, 8).map((t) => `<button class="pj-tag-sugerida" data-j="por-tag" data-tag="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>` : ''}
+      </section>
+      <section>
+        <h3 class="pcf-rotulo">Sua nota</h3>
+        <div class="minha-nota-linha">${estrelasHTML(f)}</div>
+      </section>
+    </div>`;
+}
+
+// Onde jogar: a Steam primeiro (com "instalado" quando estiver), as outras lojas e as plataformas.
+function ondeJogarPaginaHTML(f, e) {
+  const lojas = lojasDoJogo(f);
+  const plataformas = (f.plataformasJogo || []).map((p) => (p && (p.abrev || p.nome)) || '').filter((p, i, l) => p && l.indexOf(p) === i);
+  if (!lojas.length && !plataformas.length) return '';
+  const steam = lojas.find((l) => l.loja === 'steam');
+  const outras = lojas.filter((l) => l.loja !== 'steam');
+  return `<section>
+      <h3 class="pcf-rotulo">Onde jogar</h3>
+      <div class="pj-lojas">
+        ${steam ? `<button class="pj-loja pj-loja-steam" data-j="loja-steam" title="Abre a página do jogo na loja da Steam">${MARCA_STEAM_JOGO}<b>Steam</b><small>${esc(subtituloSteamJogo(e).toLocaleLowerCase('pt-BR'))}</small></button>` : ''}
+        ${outras.map((l) => `<button class="pj-loja" data-j="loja" data-url="${esc(l.url)}" title="Abre a página do jogo na ${esc(l.nome)}">${esc(l.nome)}</button>`).join('')}
+        ${plataformas.filter((p) => !(steam && /^PC$/i.test(p))).map((p) => `<span class="pj-loja pj-plataforma">${esc(p)}</span>`).join('')}
+      </div>
+    </section>`;
+}
+
+// HowLongToBeat numa régua só: História, + extras e 100% em tons do verde do nandplay,
+// com o seu tempo (da Steam) marcado em cima.
+function reguaHltbHTML(f, e) {
+  const t = temposHltb(f);
+  const minutos = e && e.tipo === 'steam' ? Number(e.minutos) || 0 : 0;
+  const voce = minutos >= 60 ? minutos / 60 : 0;
+  const marcas = [['historia', 'história', t.historia], ['extras', 'com extras', t.extras], ['cem', '100%', t.cem]].filter(([, , h]) => h > 0);
+  const botao = `<button class="pj-hltb-link" data-j="hltb" title="${f.hltb ? 'Abre a página do jogo no HowLongToBeat' : 'Procura o jogo no HowLongToBeat'}">${icone('ExternalLink')} Ver no HowLongToBeat</button>`;
+  if (!marcas.length) return `<section data-pj-hltb><h3 class="pcf-rotulo">HowLongToBeat</h3><p class="pcf-vazio">Ainda sem os tempos deste jogo.</p>${botao}</section>`;
+  const max = Math.max(...marcas.map(([, , h]) => h), voce) || 1;
+  const pct = (h) => Math.min(100, (h / max) * 100);
+  const cores = { historia: '#0F8E57', extras: '#2EB97A', cem: '#7FE3B4' };
+  let inicio = 0;
+  const faixas = marcas.map(([k, , h]) => { const p = pct(h); const s = `${cores[k]} ${inicio}% ${p}%`; inicio = p; return s; });
+  if (inicio < 100) faixas.push(`rgba(255, 255, 255, .1) ${inicio}% 100%`);
+  let anterior = -100;
+  let desce = false;
+  const rotulos = marcas.map(([, nome, h]) => {
+    const p = pct(h);
+    const baixo = p - anterior < 20; // perto demais da marca anterior: desce uma linha
+    if (baixo) desce = true; else anterior = p;
+    return `<span class="pj-marca${baixo ? ' baixo' : ''}${p < 14 ? ' inicio' : ''}" style="left:${p}%"><b>${esc(horasHltb(h))}</b>${esc(nome)}</span>`;
+  }).join('');
+  const pv = pct(voce);
+  const marcaVoce = voce ? `<span class="pj-voce${pv < 12 ? ' inicio' : pv > 88 ? ' fim' : ''}" style="left:${pv}%">você, ${esc(horasJogadas(minutos))}</span>` : '';
+  const legenda = marcas.map(([, nome, h]) => `${nome}: ${horasHltb(h)}`).join(', ') + (voce ? `; você: ${tempoDeJogoSteam(minutos)}` : '');
+  return `<section data-pj-hltb>
+      <h3 class="pcf-rotulo">HowLongToBeat</h3>
+      <div class="pj-regua${voce ? ' com-voce' : ''}${desce ? ' duas-linhas' : ''}" role="img" aria-label="${esc(legenda)}">
+        <div class="pj-barra" style="background:linear-gradient(90deg, ${faixas.join(', ')})"></div>
+        ${marcaVoce}${rotulos}
+      </div>
+      ${botao}
+    </section>`;
+}
+
+// A biblioteca/instalados da Steam chegaram: "instalado", o "Ver na Steam" e a régua.
+function atualizarPaginaJogoSteam(f, e) {
+  if (paginaJogoNoCelular() || estado.painelId !== f.id) return;
+  const sub = document.querySelector('#painel .pj-loja-steam small');
+  if (sub) sub.textContent = subtituloSteamJogo(e).toLocaleLowerCase('pt-BR');
+  const ver = document.querySelector('#painel [data-pj-ver-steam]');
+  if (ver) ver.innerHTML = verNaSteamJogoHTML(f, e);
+  const regua = document.querySelector('#painel [data-pj-hltb]');
+  if (regua) regua.outerHTML = reguaHltbHTML(f, e);
+}
+
+function capturasJogoValidas(f) { return (Array.isArray(f.capturas) ? f.capturas : []).filter((u) => /^https:\/\//i.test(String(u))); }
+
+function capturasPaginaJogoHTML(f) {
+  const lista = capturasJogoValidas(f);
+  if (!lista.length) return '';
+  return `<section>
+      <h3 class="pcf-rotulo">Capturas</h3>
+      <div class="pj-capturas">${lista.slice(0, 3).map((u, i) => `<button class="pj-captura" data-j="captura" data-i="${i}" aria-label="Ver a captura ${i + 1}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join('')}</div>
+    </section>`;
+}
+
+function renderPaginaJogo(f) {
+  $('#painel').setAttribute('aria-label', 'Detalhes do jogo');
+  const e = estadoBotaoSteam(f, contextoSteamJogo());
+  const topo = $('#painel .painel-capa');
+  if (!topo || topo.dataset.id !== f.id) {
+    const visivel = comImagensDoJogo(f);
+    const [fundo, ...resto] = fundosDoJogo(f);
+    $('#painel-conteudo').innerHTML = `
+      <button class="redondo painel-fechar" data-p="fechar" aria-label="Fechar" title="Fechar (Esc)">${icone('X')}</button>
+      ${botaoVoltarPainelHTML()}
+      <div class="painel-capa painel-jogo pj" data-id="${esc(f.id)}">
+        <div class="painel-fundo-video"><div class="destaque-fundo-capa"></div>${fundo ? `<img class="jogo-fundo-img" src="${esc(fundo)}" alt="" data-resto="${esc(JSON.stringify(resto))}">` : ''}</div>
+        <div class="painel-sombra"></div>
+        <button class="btn-redondo painel-som" data-p="som" title="${tituloSom()}" aria-label="${tituloSom()}" hidden>${iconeSom()}</button>
+        <div class="painel-cabecalho">
+          <div class="pj-capa destaque-poster painel-poster-externo">${capaHTML(visivel, { tamanho: 'grande' })}</div>
+          <div class="pj-info">
+            <div class="destaque-titulo">${tituloHTML(visivel)}</div>
+            <p class="pj-meta" data-info="meta-painel">${metaPaginaJogoHTML(f)}</p>
+            <div class="painel-botoes">
+              <button class="btn btn-pj pj-jogar jogo-steam-btn" data-j="steam" data-acao="${e.tipo === 'steam' ? e.acao : 'link'}" title="${esc(e.dica)}">${botaoSteamConteudoHTML(e)}</button>
+              <span class="pj-ver-steam-lugar" data-pj-ver-steam>${verNaSteamJogoHTML(f, e)}</span>
+              ${f.externo ? `<button class="btn btn-pj pj-vidro" data-j="adicionar">${icone('Plus')} Adicionar à lista</button>` : statusPaginaJogoHTML(f)}
+              ${f.externo ? '' : favJogoBotaoHTML(f)}
+              ${f.externo ? '' : `<button class="redondo pj-quadrado" data-p="story" title="Criar story para o Instagram" aria-label="Criar story para o Instagram">${icone('ImagePlus')}</button>`}
+              ${f.trailer ? `<button class="redondo pj-quadrado" data-p="trailer" title="Ver o trailer em tela cheia" aria-label="Ver o trailer em tela cheia">${icone('Clapperboard')}</button>` : ''}
+              <div class="jogo-tempo-steam pj-tempo" data-j-steam-tempo${tempoSteamJogoHTML(e) ? '' : ' hidden'}>${tempoSteamJogoHTML(e)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="painel-resto"></div>`;
+    fundoDesfocado($('.painel-capa'), visivel);
+    carregarTrailerPainel(f);
+    carregarSteamDoJogo().then(() => { if (estado.painelId === f.id) atualizarBotaoSteamJogo(f); });
+    trazerImagensSteamJogo(f);
+  } else {
+    atualizarBotaoSteamJogo(f);
+    atualizarStatusPaginaJogo(f);
+  }
+
+  const fichas = [
+    ['Desenvolvimento', nomesJogo(f.desenvolvedores)],
+    ['Publicação', nomesJogo(f.publicadoras)],
+    ['Modos', (f.modos || []).join(', ')],
+    ['Lançamento', f.lancamento ? diaLegivel(f.lancamento, { comAno: true }) : ''],
+  ].filter(([, v]) => v);
+  $('#painel-resto').innerHTML = `
+    <div class="painel-corpo pj-corpo">
+      <div class="pj-principal">
+        ${f.externo ? foraDaListaHTML(f) : ''}
+        ${f.sinopse ? `<section><h3 class="pcf-rotulo">Sobre</h3><p class="painel-sinopse">${esc(f.sinopse)}</p></section>` : ''}
+        ${f.externo ? '' : usuarioJogoHTML(f)}
+        ${capturasPaginaJogoHTML(f)}
+      </div>
+      <aside class="pj-lado">
+        ${ondeJogarPaginaHTML(f, e)}
+        ${fichas.length ? `<section><dl class="pcf-ficha pj-ficha">${fichas.map(([r, v]) => `<dt>${r}</dt><dd>${esc(v)}</dd>`).join('')}</dl></section>` : ''}
+        ${reguaHltbHTML(f, e)}
+      </aside>
+    </div>
+    <div id="painel-relacionados"></div>
+    ${f.externo ? '' : `<div class="painel-rodape pj-rodape"><span></span><button class="btn btn-perigo" data-p="excluir">${icone('Trash2')} Remover da lista</button></div>`}`;
+  carregarMaisDoDesenvolvedor(f);
+  procurarHltbJogo(f);
+}
+
+if (typeof document !== 'undefined' && document.getElementById('painel')) {
+  const painelDoJogoPc = document.getElementById('painel');
+  painelDoJogoPc.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-j]');
+    const f = estado.painelId ? porId(estado.painelId) : null;
+    if (!b || !ehJogo(f)) return;
+    if (b.dataset.j === 'status-menu') {
+      const menu = b.parentElement.querySelector('.pj-status-menu');
+      const abrir = menu.hidden;
+      menu.hidden = !abrir;
+      b.setAttribute('aria-expanded', String(abrir));
+      if (abrir) (menu.querySelector('.atual') || menu.querySelector('button'))?.focus({ preventScroll: true });
+    } else if (b.dataset.j === 'status') {
+      fecharMenuStatusJogo();
+      if (b.dataset.status !== f.status) mudarStatusJogo(f, b.dataset.status);
+    } else if (b.dataset.j === 'captura') {
+      abrirVisor(capturasJogoValidas(f), Number(b.dataset.i) || 0);
+    }
+  });
+  // O dia em que zerou (no menu do status) muda o texto do seletor.
+  painelDoJogoPc.addEventListener('change', (ev) => {
+    if (!ev.target.matches('.pj-status [data-j-zerado]')) return;
+    const f = estado.painelId ? porId(estado.painelId) : null;
+    if (ehJogo(f)) setTimeout(() => { const s = document.querySelector('#painel .pj-status-rot small'); if (s) s.textContent = textoStatusJogo(f).detalhe; }, 0);
+  });
+  document.addEventListener('pointerdown', (ev) => { if (!ev.target.closest('.pj-status')) fecharMenuStatusJogo(); }, true);
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape' || !document.querySelector('#painel .pj-status-menu:not([hidden])')) return;
+    ev.stopImmediatePropagation();
+    fecharMenuStatusJogo();
+    document.querySelector('#painel [data-j="status-menu"]')?.focus({ preventScroll: true });
+  }, true);
 }
