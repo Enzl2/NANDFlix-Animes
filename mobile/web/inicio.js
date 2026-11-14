@@ -193,7 +193,9 @@ function renderCelular() {
   const plat = plataformaAtual();
   const naMarca = cel.modo.tipo === 'inicio';
   titulo.classList.toggle('marca-nandflix', naMarca);
-  titulo.textContent = naMarca ? plat.nome : tituloDoModo();
+  // A marca do visual novo: 'nand' fino + o resto em negrito na cor da plataforma (sem o ícone).
+  if (naMarca) titulo.innerHTML = escolhaMarcaHTML(plat); else titulo.textContent = tituloDoModo();
+  $('#cel-marca').hidden = naMarca;
   if (naMarca) titulo.dataset.cel = 'plataformas'; else delete titulo.dataset.cel;
   const marca = $('#cel-marca');
   const chaveMarca = chaveIconePlataforma(plat);

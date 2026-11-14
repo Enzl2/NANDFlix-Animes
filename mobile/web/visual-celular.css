@@ -132,3 +132,19 @@ html.celular .pr-status.errado { color: var(--perigo); }
 html.celular .pr-status.vazio { color: var(--texto-2); }
 html.celular .pr-seta { border-radius: 6px; }
 html.celular .pr-card-acoes .pr-botao { border-radius: 6px; }
+
+/* Marca do topo como no PC: "nand" fino + o resto em negrito na cor da plataforma, sem degradê nem emoji. */
+html .cel-titulo.marca-nandflix, html[data-tema] .cel-titulo.marca-nandflix, html[data-tema][data-com-verde] .cel-titulo.marca-nandflix {
+  margin-left: 0; background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--texto); text-transform: none;
+}
+.cel-titulo .plat-marca { font-size: 28px; }
+.cel-titulo .plat-marca-nand { font-weight: 400; opacity: .78; }
+.cel-titulo .plat-marca-suf { font-weight: 800; color: var(--acento-chapado); }
+
+/* Marca do topo como no PC: "nand" fino + o resto em negrito na cor da plataforma, sem degradê nem emoji. */
+html .cel-titulo.marca-nandflix, html[data-tema] .cel-titulo.marca-nandflix, html[data-tema][data-com-verde] .cel-titulo.marca-nandflix {
+  margin-left: 0; background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--texto); text-transform: none;
+}
+.cel-titulo .plat-marca { font-size: 28px; }
+.cel-titulo .plat-marca-nand { font-weight: 400; opacity: .78; }
+.cel-titulo .plat-marca-suf { font-weight: 800; color: var(--acento-chapado); }
