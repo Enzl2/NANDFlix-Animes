@@ -1,0 +1,265 @@
+/* ==========================================================================
+   Visual novo, lote 5: a tela de prêmios no PC (premios-palco.js).
+   Uma caixa grande nas cores da premiação, uma categoria por vez no palco.
+   Tudo aqui vale só dentro de .pp (a caixa dos prêmios no PC); o celular não
+   recebe essa classe e continua com o desenho dele (mobile/web/telas.css).
+   ========================================================================== */
+
+/* As cores de cada premiação: --pr (a cor), --pr-claro (texto sobre o fundo), --pr-tinta (texto
+   sobre a cor), --pr-fundo (a caixa) e --pr-papel (a gaveta). */
+.pp { --pr: #DDB248; --pr-rgb: 221, 178, 72; --pr-claro: #F6E3A6; --pr-tinta: #201603; --pr-fundo: #080705; --pr-papel: #17130A; }
+/* The Game Awards: preto e laranja-dourado. BAFTA (jogos e filmes): preto, dourado e branco. */
+.pp[data-premio="tga"] { --pr: #FF9F59; --pr-rgb: 255, 159, 89; --pr-claro: #FFD3B0; --pr-tinta: #2A1406; --pr-fundo: #0C0805; --pr-papel: #1A1109; }
+.pp[data-premio="baftajogos"], .pp[data-premio="bafta"] { --pr: #CDAE6A; --pr-rgb: 205, 174, 106; --pr-claro: #F1E3C2; --pr-tinta: #1E1707; --pr-fundo: #09090A; --pr-papel: #16140F; }
+/* Oscar: preto e o dourado da estatueta. */
+.pp[data-premio="oscar"] { --pr: #DDB248; --pr-rgb: 221, 178, 72; --pr-claro: #F6E3A6; --pr-tinta: #201603; --pr-fundo: #080705; --pr-papel: #17130A; }
+/* Globo de Ouro: dourado sobre azul-noite. */
+.pp[data-premio="globo"] { --pr: #E9C46A; --pr-rgb: 233, 196, 106; --pr-claro: #F8E9BF; --pr-tinta: #1B1404; --pr-fundo: #06080F; --pr-papel: #10131D; }
+/* Critics Choice: o azul da estrela. */
+.pp[data-premio="critics"] { --pr: #6FB1E8; --pr-rgb: 111, 177, 232; --pr-claro: #CFE6FA; --pr-tinta: #06182A; --pr-fundo: #05080C; --pr-papel: #0E151D; }
+/* Actor Awards (SAG): o verde-bronze da estatueta. */
+.pp[data-premio="sag"] { --pr: #7FC4A8; --pr-rgb: 127, 196, 168; --pr-claro: #CDEBDF; --pr-tinta: #06201A; --pr-fundo: #050908; --pr-papel: #0E1714; }
+/* Independent Spirit: coral. Gotham: preto e prata. */
+.pp[data-premio="spirit"] { --pr: #FF7A66; --pr-rgb: 255, 122, 102; --pr-claro: #FFD2CA; --pr-tinta: #2A0B06; --pr-fundo: #0C0605; --pr-papel: #1A0F0D; }
+.pp[data-premio="gotham"] { --pr: #D9DCE4; --pr-rgb: 217, 220, 228; --pr-claro: #F2F3F6; --pr-tinta: #121318; --pr-fundo: #070708; --pr-papel: #141416; }
+/* Cannes: a palma dourada sobre azul. Veneza: o leão dourado sobre vinho. Berlim: o vermelho da Berlinale. */
+.pp[data-premio="cannes"] { --pr: #D8B56A; --pr-rgb: 216, 181, 106; --pr-claro: #F3E4BF; --pr-tinta: #1C1505; --pr-fundo: #060912; --pr-papel: #0F1422; }
+.pp[data-premio="veneza"] { --pr: #E8B84A; --pr-rgb: 232, 184, 74; --pr-claro: #F8E3AE; --pr-tinta: #211603; --pr-fundo: #0E0607; --pr-papel: #1C0E10; }
+.pp[data-premio="berlim"] { --pr: #F0483E; --pr-rgb: 240, 72, 62; --pr-claro: #FFC9C4; --pr-tinta: #2A0605; --pr-fundo: #0B0606; --pr-papel: #190E0E; }
+/* "Joguei" tem o verde do nandplay; "Vi", o roxo do nandflix (também no nandhub). */
+.pp[data-tipo="jogo"] { --pp-feito: #35E58E; --pp-feito-rgb: 53, 229, 142; --pp-feito-claro: #93F7C4; }
+.pp[data-tipo="filme"] { --pp-feito: #9F6BFF; --pp-feito-rgb: 159, 107, 255; --pp-feito-claro: #D5C2FF; }
+
+.calendario-caixa.pp {
+  --pp-linha: rgba(255, 255, 255, .13);
+  --pp-texto-2: #A9A5B6;
+  --pp-texto-3: #6F6B7D;
+  /* A altura do pôster: o que sobra da janela depois do topo, do título, dos textos e do rodapé. */
+  --pp-extra: 0px;
+  --pp-ph: clamp(150px, calc(100vh - 490px - var(--pp-extra)), 640px);
+  width: calc(100vw - 52px); height: calc(100vh - 40px); max-height: none;
+  padding: 22px 32px 18px; border-radius: 14px; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--pr-fundo); transition: background-color .5s;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--pr-rgb), .18);
+}
+.pp[data-tipo="filme"] { --pp-extra: 26px; }
+.pp.pp-muitos { --pp-extra: 42px; }
+.pp.pp-muitos[data-tipo="filme"] { --pp-extra: 68px; }
+.pp[data-linhas="2"], .pp[data-linhas="3"] { --pp-ph: max(150px, calc((100vh - 520px - var(--pp-extra)) / 2)); }
+
+.pp button { font-family: var(--ui); cursor: pointer; }
+.pp .ico { stroke-width: 2.4; stroke-linecap: square; stroke-linejoin: miter; }
+.pp-simbolo { width: 18px; height: 17px; flex: none; fill: currentColor; stroke: none; }
+/* O nome das premiações sem símbolo: só a letra. */
+.pp-sigla { font-weight: 800; letter-spacing: .12em; font-size: .9em; }
+.pp-oscar { font-weight: 800; letter-spacing: .01em; }
+
+/* ---- A barra de cima ---- */
+.pp-topo { position: relative; z-index: 21; display: flex; align-items: center; gap: 10px; }
+.pp-topo > button { flex: none; white-space: nowrap; }
+.pp-topo h2 { margin: 0 14px 0 0; font: 700 24px/1 var(--display); letter-spacing: -.01em; }
+.pp-abrir-cats {
+  margin-right: 4px; height: 38px; padding: 0 14px 0 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 700; color: var(--texto); background: rgba(var(--pr-rgb), .12); border: 1px solid rgba(var(--pr-rgb), .35);
+  transition: background-color .2s;
+}
+.pp-abrir-cats:hover, .pp-cats-abertas .pp-abrir-cats { background: rgba(var(--pr-rgb), .2); }
+.pp-abrir-cats:disabled { opacity: .45; cursor: default; background: rgba(var(--pr-rgb), .12); }
+.pp-abrir-cats .ico { width: 17px; height: 17px; color: var(--pr); }
+.pp-abrir-cats small { font-size: 12px; font-weight: 500; color: var(--pp-texto-2); font-variant-numeric: tabular-nums; }
+.pp-premiacoes { display: flex; gap: 8px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.pp-premiacoes::-webkit-scrollbar, .pp-anos::-webkit-scrollbar { display: none; }
+.pp-muitos .pp-premiacoes { flex: 1 1 0; padding-right: 28px; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.pp-premiacao {
+  flex: none; height: 38px; padding: 0 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  font-size: 13.5px; font-weight: 700; background: none; border: 1px solid var(--pp-linha); color: var(--pp-texto-2);
+  transition: color .25s, background-color .25s, border-color .25s;
+}
+.pp-premiacao:hover { color: #fff; }
+.pp-premiacao.ativo { background: var(--pr); color: var(--pr-tinta); border-color: transparent; }
+.pp-anos { display: flex; flex: 1 1 0; margin-left: 14px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+  /* os anos que não cabem somem aos poucos na borda (a roda do mouse rola a fileira) */
+  padding-right: 28px; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.pp-muitos > .pp-anos { flex: none; margin: 12px 0 0; }
+.pp-ano {
+  flex: none; height: 30px; padding: 0 5px; border: 0; border-radius: 4px; background: none;
+  font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--pp-texto-3); transition: color .2s;
+}
+.pp-ano:hover { color: var(--texto); }
+.pp-ano.breve { color: rgba(255, 255, 255, .22); }
+.pp-ano.ativo { color: var(--pr-tinta); background: var(--pr-claro); }
+.pp-fechar {
+  margin-left: auto; width: 40px; height: 40px; padding: 0; border-radius: 6px; display: grid; place-items: center;
+  background: none; border: 1px solid var(--pp-linha); color: var(--texto); transition: border-color .2s;
+}
+.pp-fechar:hover { border-color: rgba(255, 255, 255, .35); }
+
+/* ---- O palco: a categoria e os indicados, centralizados na altura que sobra (um pouco acima do centro) ---- */
+.calendario-caixa.pp > .pp-palco {
+  position: relative; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  margin: 0 -32px; padding: 0 32px;
+}
+.pp-centro { margin: auto 0; padding-bottom: clamp(0px, 7vh, 70px); min-width: 0; }
+.pp[data-linhas="2"] .pp-centro { padding-bottom: 0; }
+/* Os festivais (a competição inteira numa categoria): o palco rola. */
+.pp[data-linhas="3"] > .pp-palco { overflow-y: auto; overscroll-behavior: contain; }
+.pp[data-linhas="3"] .pp-centro { padding: 18px 0 24px; }
+.pp-categoria { margin-bottom: 34px; text-align: center; }
+.pp-categoria h3 {
+  margin: 0; font: 800 clamp(40px, 7.5vh, 68px)/1.05 var(--display); letter-spacing: -.02em; color: var(--pr-claro);
+  text-wrap: balance; overflow-wrap: anywhere;
+}
+.pp-categoria h3.longo { font-size: clamp(34px, 5.8vh, 52px); }
+.pp[data-linhas="2"] .pp-categoria, .pp[data-linhas="3"] .pp-categoria { margin-bottom: 22px; }
+.pp[data-linhas="2"] .pp-categoria h3, .pp[data-linhas="3"] .pp-categoria h3 { font-size: clamp(32px, 5.3vh, 48px); }
+.pp-edicao { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--pp-texto-2); font-variant-numeric: tabular-nums; }
+.pp-original { margin: 6px 0 0; font-size: 13px; color: var(--pp-texto-3); }
+
+.pp-indicados {
+  list-style: none; margin: 0 auto; padding: 0; display: grid; gap: 24px 20px;
+  grid-template-columns: repeat(var(--pp-cols, 6), minmax(0, 1fr));
+  width: 100%; max-width: calc(var(--pp-ph) * .6667 * var(--pp-cols, 6) + (var(--pp-cols, 6) - 1) * 20px);
+}
+.pp-ind { display: flex; flex-direction: column; min-width: 0; container-type: inline-size; }
+.pp-capa {
+  position: relative; display: block; width: 100%; aspect-ratio: 2 / 3; padding: 0; border: 0; border-radius: 6px; overflow: hidden;
+  background: #17161C; color: var(--texto); transition: transform .3s var(--saida), box-shadow .3s;
+}
+.pp-capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-capa img.pr-capa-deitada { object-fit: contain; background: #0E0D12; }
+.pp-capa .pr-capa-vazia { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; font: 700 15px/1.2 var(--ui); color: var(--pp-texto-2); text-align: center; overflow: hidden; }
+button.pp-capa:hover { transform: translateY(-6px); box-shadow: 0 14px 26px rgba(0, 0, 0, .55); }
+/* Pessoa ou time: a inicial grande no lugar da capa */
+.pp-inicial { display: grid; place-items: center; background: var(--pr-papel); box-shadow: inset 0 0 0 1px rgba(var(--pr-rgb), .16); }
+.pp-inicial > span:first-child { font: 800 34cqw/1 var(--display); color: rgba(var(--pr-rgb), .7); letter-spacing: .02em; }
+
+/* O vencedor em destaque: moldura grossa e brilho na cor do prêmio, nome na cor. Os outros ficam como estão. */
+.pp-ind.venceu .pp-capa, .pp-ind.venceu button.pp-capa:hover {
+  box-shadow: 0 0 0 3px var(--pr), 0 0 0 8px rgba(var(--pr-rgb), .18), 0 0 60px 6px rgba(var(--pr-rgb), .45), 0 0 140px 20px rgba(var(--pr-rgb), .2);
+}
+.pp-ind.venceu { position: relative; z-index: 1; }
+.pp-ind.venceu h4 { color: var(--pr-claro); }
+.pp-faixa {
+  position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 40px; padding: 0 12px; display: flex; align-items: center; gap: 8px;
+  background: var(--pr); color: var(--pr-tinta); font: 800 14px var(--ui); white-space: nowrap; overflow: hidden;
+}
+.pp-faixa .pp-simbolo { width: 22px; height: 20px; }
+.pp-faixa-marca { margin-left: auto; font-size: 12px; opacity: .78; }
+.pp-faixa-marca.pp-sigla { font-size: 11px; letter-spacing: .14em; }
+
+.pp-ind h4 {
+  margin: 12px 0 3px; font: 700 17px/1.22 var(--display); letter-spacing: -.01em; color: var(--texto);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.pp-sub { font-size: 12.5px; line-height: 1.35; color: var(--pp-texto-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-ind .pp-na-lista { font-size: 12px; line-height: 1.35; color: var(--pp-feito-claro); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Palpite e Joguei (ou Vi): dois botões embaixo de cada indicado */
+.pp-botoes { display: flex; gap: 6px; margin-top: auto; padding-top: 12px; }
+.pp-b {
+  flex: 1 1 0; min-width: 0; height: 34px; padding: 0 4px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; background: none; border: 1px solid var(--pp-linha); color: var(--pp-texto-2);
+  transition: color .2s, background-color .2s, border-color .2s;
+}
+.pp-b .ico { width: 14px; height: 14px; }
+.pp-b:hover { color: #fff; border-color: rgba(255, 255, 255, .35); }
+.pp-b:disabled { opacity: .5; cursor: progress; }
+.pp-b.pp-palpite.on { background: rgba(var(--pr-rgb), .16); border-color: var(--pr); color: var(--pr-claro); }
+.pp-b.pp-feito.on { background: rgba(var(--pp-feito-rgb), .14); border-color: var(--pp-feito); color: var(--pp-feito-claro); }
+/* Cartões estreitos (dez indicados, janela pequena): letra menor, botões sem ícone e, no limite, um sobre o outro */
+@container (max-width: 172px) {
+  .pp-ind h4 { font-size: 14.5px; margin-top: 10px; }
+  .pp-sub, .pp-ind .pp-na-lista { font-size: 11.5px; }
+  .pp-ind .pp-na-lista { white-space: normal; }
+  .pp-b.pp-palpite { flex-grow: 1.5; }
+  .pp-b .ico { display: none; }
+  .pp-b { font-size: 12px; height: 30px; }
+  .pp-botoes { padding-top: 8px; }
+  .pp-faixa { height: 30px; padding: 0 8px; font-size: 12.5px; }
+  .pp-faixa .pp-simbolo { width: 17px; height: 16px; }
+  .pp-faixa-marca { display: none; }
+}
+@container (max-width: 104px) {
+  .pp-botoes { flex-direction: column; gap: 4px; }
+  .pp-b { flex: none; height: 26px; }
+}
+
+.pp-vazio, .pp-aviso p { margin: 0; text-align: center; font-size: 16px; color: var(--pp-texto-2); }
+.pp-aviso { margin: auto; max-width: 560px; padding-bottom: 70px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.pp-aviso h3 { margin: 0; font: 800 clamp(32px, 5.5vh, 52px)/1.05 var(--display); letter-spacing: -.02em; color: var(--pr-claro); }
+.pp-aviso .pp-procurar { flex: none; height: 38px; padding: 0 16px; font-size: 13.5px; color: var(--texto); background: rgba(var(--pr-rgb), .12); border-color: rgba(var(--pr-rgb), .35); }
+.pp-aviso .pp-procurar .ico { color: var(--pr); width: 16px; height: 16px; }
+
+/* ---- A gaveta de categorias: abre por cima dos indicados, sem empurrá-los ---- */
+.pp-gaveta {
+  position: absolute; z-index: 20; left: var(--pp-gx, 32px); top: var(--pp-gy, 72px); bottom: 18px; width: 300px; display: flex; flex-direction: column;
+  background: var(--pr-papel); border-radius: 0 0 8px 8px; padding: 32px 6px 8px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .7), 0 0 0 1px rgba(var(--pr-rgb), .2);
+  transform: translateY(-12px); opacity: 0; visibility: hidden; transition: transform .3s var(--saida), opacity .2s, visibility 0s .3s;
+}
+.pp-gaveta::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 24px; background: rgba(var(--pr-rgb), .24); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.pp-cats-abertas .pp-gaveta { transform: none; opacity: 1; visibility: visible; transition: transform .3s var(--saida), opacity .2s; }
+.pp-sombra-gaveta { position: absolute; z-index: 19; inset: 0; background: rgba(0, 0, 0, .45); opacity: 0; pointer-events: none; transition: opacity .25s; }
+.pp-cats-abertas .pp-sombra-gaveta { opacity: 1; pointer-events: auto; }
+.pp-gaveta ol { list-style: none; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; }
+.pp-gaveta ol::-webkit-scrollbar, .pp-palco::-webkit-scrollbar { width: 6px; }
+.pp-gaveta ol::-webkit-scrollbar-thumb, .pp-palco::-webkit-scrollbar-thumb { background: rgba(var(--pr-rgb), .3); border-radius: 3px; }
+.pp-gaveta ol::-webkit-scrollbar-track, .pp-palco::-webkit-scrollbar-track { background: transparent; }
+.pp-gaveta li button {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: 0; border-radius: 4px; background: none;
+  font-size: 13.5px; line-height: 1.3; color: var(--pp-texto-2); text-align: left;
+}
+.pp-gaveta li button:hover { color: var(--texto); background: rgba(255, 255, 255, .04); }
+.pp-gaveta .pp-num { flex: none; width: 20px; color: var(--pp-texto-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.pp-gaveta .pp-cat-nome { min-width: 0; }
+.pp-gaveta .pp-cat-nome small { display: block; font-size: 11px; color: var(--pp-texto-3); font-weight: 400; }
+.pp-gaveta .ico { width: 14px; height: 14px; }
+.pp-marca { margin-left: auto; display: flex; flex: none; }
+.pp-marca.acertou { color: var(--pr); }
+.pp-marca.errou, .pp-marca.feito { color: var(--pp-texto-3); }
+.pp-gaveta li.completa button { color: var(--pp-texto-3); }
+.pp-gaveta li.ativo button { color: var(--pr-claro); font-weight: 700; background: rgba(var(--pr-rgb), .12); box-shadow: inset 3px 0 0 var(--pr); }
+
+/* ---- O rodapé ---- */
+.pp-rodape { display: flex; align-items: center; gap: 22px; padding-top: 14px; min-height: 46px; }
+.pp-conta { font-size: 14px; color: var(--pp-texto-2); white-space: nowrap; }
+.pp-rodape b { font-size: 18px; color: #fff; font-weight: 700; margin-right: 2px; font-variant-numeric: tabular-nums; }
+.pp-so-falta {
+  flex: none; height: 32px; padding: 0 12px; border-radius: 999px; background: none; border: 1px solid var(--pp-linha);
+  font-size: 12.5px; color: var(--pp-texto-2); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  transition: color .2s, background-color .2s, border-color .2s;
+}
+.pp-so-falta .ico { width: 14px; height: 14px; }
+.pp-so-falta:hover { color: #fff; border-color: rgba(255, 255, 255, .35); }
+.pp-so-falta.ativo { background: rgba(var(--pr-rgb), .16); border-color: var(--pr); color: var(--pr-claro); }
+.pp-palpites { margin-left: auto; font-size: 13px; color: var(--pp-texto-2); display: flex; gap: 16px; align-items: baseline; white-space: nowrap; }
+.pp-palpites b { color: var(--pr-claro); }
+.pp-limpar { align-self: center; width: 32px; height: 32px; padding: 0; border-radius: 6px; display: grid; place-items: center; background: none; border: 1px solid var(--pp-linha); color: var(--pp-texto-2); transition: color .2s, border-color .2s; }
+.pp-limpar .ico { width: 15px; height: 15px; }
+.pp-limpar:hover { color: #fff; border-color: rgba(255, 255, 255, .35); }
+
+/* Trocar de categoria, de ano ou de premiação */
+.pp-troca .pp-categoria, .pp-troca .pp-indicados, .pp-troca .pp-vazio, .pp-troca .pp-aviso { animation: ppTroca .5s var(--saida) both; }
+@keyframes ppTroca { from { opacity: 0; transform: translateY(10px); } }
+
+.pp :is(button, a):focus-visible { outline: 2px solid var(--pr-claro); outline-offset: 2px; }
+
+/* Janela estreita: a caixa encosta nas bordas e o rodapé quebra */
+@media (max-width: 900px) {
+  .calendario-caixa.pp { width: 100vw; height: 100vh; border-radius: 0; padding: 16px 16px 12px; }
+  .calendario-caixa.pp > .pp-palco { margin: 0 -16px; padding: 0 16px; overflow-y: auto; }
+  .pp-topo h2 { display: none; }
+  .pp-rodape { flex-wrap: wrap; gap: 8px 16px; }
+  .pp-conta { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-troca .pp-categoria, .pp-troca .pp-indicados, .pp-troca .pp-vazio, .pp-troca .pp-aviso { animation: none; }
+  .calendario-caixa.pp, .pp-capa, .pp-gaveta, .pp-cats-abertas .pp-gaveta, .pp-sombra-gaveta { transition: none; }
+  button.pp-capa:hover { transform: none; }
+}
+
+/* O desenho antigo (ainda usado no celular): sem rótulos em caixa alta espaçada. */
+.pr-aba small, .pr-numeros span, .pr-resumo .est-kicker { text-transform: none; letter-spacing: 0; }
+.pr-resumo .est-kicker { font-size: 13px; }
