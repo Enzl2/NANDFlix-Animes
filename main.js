@@ -1073,6 +1073,21 @@ ipcMain.handle('tmdb:relacionados', (_e, id) => chamar(async () => {
   return relacionadosCache.get(tmdbId);
 }));
 
+// A arte da página de detalhes (fundo, fotogramas, título original), guardada enquanto o app está aberto.
+const arteCache = new Map();
+ipcMain.handle('tmdb:arte', (_e, id) => chamar(async () => {
+  const filme = filmes.find((f) => f.id === id);
+  const serie = ehSerie(filme);
+  const tmdbId = filme ? (serie ? filme.tmdbTvId : filme.tmdbId) : (String(id).match(/^tmdb-(\d+)$/) || [])[1];
+  if (!tmdbId || !/^\d+$/.test(String(tmdbId)) || !config.tmdbKey) return null;
+  const chave = `${serie ? 'tv' : 'movie'}:${tmdbId}`;
+  if (!arteCache.has(chave)) {
+    arteCache.set(chave, tmdb.arte(config.tmdbKey, tmdbId, serie ? 'tv' : 'movie')
+      .catch((e) => { arteCache.delete(chave); throw e; }));
+  }
+  return arteCache.get(chave);
+}));
+
 // Confere uma chave nova com uma consulta simples (Um Sonho de Liberdade) antes de salvar.
 ipcMain.handle('tmdb:testarChave', (_e, chave) => chamar(() => tmdb.idPorImdb(String(chave || '').trim(), 'tt0111161')));
 ipcMain.handle('omdb:testarChave', (_e, chave) => chamar(() => omdb.detalhes(String(chave || '').trim(), 'tt0111161')));

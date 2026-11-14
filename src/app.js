@@ -810,6 +810,9 @@ function renderPainel() {
     if (focoAntes && estado.painelId === f.id) $(`#painel [data-p="${focoAntes}"]`)?.focus({ preventScroll: true });
   });
 
+  // PC: a página nova (painel-filme.js); o celular segue com o painel abaixo (mobile/web/detalhes.js).
+  if (!api.celular) { renderPaginaFilme(f); return; }
+
   // O topo (trailer, capa e título) só é montado ao abrir outro filme: assim o
   // trailer não recomeça quando a pessoa marca visto ou favorito.
   const topo = $('#painel .painel-capa');
@@ -939,6 +942,7 @@ function renderPainel() {
 
 // Os extras chegaram (ou mudaram): redesenha as notas do painel.
 function atualizarExtrasPainel(f) {
+  if ($('#painel .painel-capa.pcf')) { atualizarExtrasPaginaFilme(f); return; } // a página do PC (painel-filme.js)
   const notas = $('#painel .painel-corpo .notas-linha');
   if (notas) notas.innerHTML = notasHTML(f.info, f);
   const onde = $('#painel [data-info="onde"]');
@@ -1289,7 +1293,7 @@ function editarCampo(id, campo, valor) {
       const titulo = $('#painel .destaque-titulo h2');
       if (titulo) titulo.textContent = f.titulo;
       const linhaMeta = $('[data-info="meta-painel"]');
-      if (linhaMeta) linhaMeta.innerHTML = painelMetaHTML(f);
+      if (linhaMeta) linhaMeta.innerHTML = linhaMeta.dataset.pc ? metaPaginaFilmeHTML(f) : painelMetaHTML(f);
     }
   }, 400);
 }

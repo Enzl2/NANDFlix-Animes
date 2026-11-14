@@ -1,0 +1,302 @@
+/* ---------- Visual novo, Lote 3: as páginas de detalhe no PC ----------
+   Filme/anime (src/painel-filme.js, classes pcf-*) e jogo (src/jogos-painel.js,
+   classes pj-*). O celular tem o painel dele (mobile/web/detalhes.css): as regras
+   que tocam classes comuns ficam em html:not(.celular). */
+
+/* O painel mais largo, com canto maior (o mesmo para filmes, animes e jogos). */
+html:not(.celular) .painel { width: min(1220px, calc(100vw - 96px)); border-radius: 22px; scrollbar-width: none; }
+html:not(.celular) .painel::-webkit-scrollbar { display: none; }
+html:not(.celular) .painel-fechar { top: 22px; right: 22px; width: 44px; height: 44px; border-radius: var(--raio-botao, 6px); background: rgba(7, 6, 10, .55); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, .13); }
+
+/* ---------- Topo: a arte até o alto, sem faixa preta ---------- */
+.painel-capa.pcf, .painel-capa.pj {
+  aspect-ratio: auto; overflow: visible; background: transparent; border-radius: 22px 22px 0 0;
+  padding-top: 200px;
+}
+.pcf .painel-fundo-video, .pj .painel-fundo-video {
+  inset: 0 0 auto 0; height: 430px; border-radius: 22px 22px 0 0; container-type: size; background: var(--canvas);
+}
+.pj .painel-fundo-video { height: 400px; }
+/* O trailer cobre a área toda (sem as faixas pretas do 16:9 numa área mais larga). */
+.pcf .painel-video, .pj .painel-video {
+  inset: auto; left: 50%; top: 50%; translate: -50% -50%;
+  width: max(100cqw, 177.78cqh); height: max(100cqh, 56.25cqw);
+}
+.pcf-arte { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+.pcf .painel-sombra, .pj .painel-sombra {
+  inset: 0 0 auto 0; height: 431px;
+  background:
+    linear-gradient(0deg, var(--superficie) 2%, rgba(14, 16, 18, .5) 45%, rgba(14, 16, 18, .1)),
+    linear-gradient(90deg, rgba(14, 16, 18, .85), rgba(14, 16, 18, 0) 60%);
+}
+.pj .painel-sombra { height: 401px; background: linear-gradient(0deg, var(--superficie) 3%, rgba(14, 16, 18, .3) 60%), linear-gradient(90deg, rgba(14, 16, 18, .6), rgba(14, 16, 18, 0) 50%); }
+.pcf .painel-som, .pj .painel-som { top: 76px; bottom: auto; right: 22px; width: 44px; height: 44px; border-radius: var(--raio-botao, 6px); }
+/* "Sessão nº 212": em cima da arte, letra normal */
+.pcf-sessao { position: absolute; left: 32px; top: 26px; z-index: 1; margin: 0; font: 600 14px/1.2 var(--ui); color: rgba(255, 255, 255, .88); text-shadow: 0 1px 8px rgba(0, 0, 0, .8); pointer-events: none; }
+
+/* Cabeçalho: capa | logo, original, dados e botões | ingresso */
+.pcf .painel-cabecalho, .pj .painel-cabecalho {
+  position: relative; inset: auto; flex-direction: row; align-items: flex-end; gap: 34px; padding: 0 56px;
+}
+.pcf .destaque-poster { width: 210px; flex: none; }
+.pcf .destaque-poster .capa, .pj .pj-capa .capa { border-radius: 12px; }
+.pcf-info, .pj-info { flex: 1; min-width: 0; padding-bottom: 6px; }
+.pcf .destaque-titulo h2 { font-size: 43px; line-height: 1; }
+.pcf .titulo-logo img { max-height: 96px; max-width: min(420px, 100%); object-position: left bottom; filter: drop-shadow(0 4px 24px rgba(0, 0, 0, .7)); }
+.pcf-original { margin: 12px 0 0; font-size: 13.5px; color: var(--texto-2); }
+.pcf-original b { font-weight: 500; color: var(--texto); }
+.painel-corpo .painel-meta.pcf-meta, .pcf-meta, .pj-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; margin: 12px 0 0;
+  font: 400 14px/1.4 var(--ui); color: var(--texto-2);
+}
+.pcf-meta .pcf-ano, .pj-meta .pj-ano { font-weight: 700; color: var(--texto); }
+.pcf-meta .classificacao { padding: 0 6px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 4px; font-size: 12px; font-weight: 700; color: var(--texto); }
+.pcf .painel-botoes, .pj .painel-botoes { margin-top: 20px; gap: 10px; }
+
+/* Botões: canto de 6px, cor chapada; só um primário */
+.pcf .btn, .pj .btn-pj { min-height: 46px; height: 46px; padding: 0 18px; border-radius: var(--raio-botao, 6px); font-size: 14.5px; font-weight: 700; gap: 9px; }
+.pcf .pcf-visto, .pj .pj-jogar { background: var(--acento-chapado, var(--acento-vivo)); color: var(--sobre-chapado, #0B0A10); box-shadow: none; }
+.pcf .pcf-visto:hover, .pj .pj-jogar:hover { background: var(--acento-chapado-hover, var(--acento-suave)); }
+.pcf .pcf-visto .ico { stroke-width: 2.6; }
+.pcf .pcf-visto:not(.visto-on) { background: transparent; color: var(--texto); box-shadow: inset 0 0 0 1.5px var(--acento-chapado, var(--acento-vivo)); }
+.pcf .pcf-visto:not(.visto-on):hover { background: rgba(var(--acento-rgb), .2); }
+.pcf-vidro, .pj-vidro, .pcf .pcf-quadrado, .pj .pj-quadrado {
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); color: var(--texto); backdrop-filter: blur(10px);
+}
+.pcf-vidro:hover, .pj-vidro:hover, .pcf .pcf-quadrado:hover, .pj .pj-quadrado:hover { background: rgba(255, 255, 255, .15); }
+.pcf .painel-botoes .pcf-quadrado, .pj .painel-botoes .pj-quadrado { width: 46px; height: 46px; border-radius: var(--raio-botao, 6px); }
+.pcf .pcf-quadrado .ico, .pj .pj-quadrado .ico { width: 18px; height: 18px; }
+.pcf .pcf-quadrado.fav-on, .pj .pj-quadrado.fav-on { color: var(--dourado); background: rgba(245, 179, 1, .12); border-color: rgba(245, 179, 1, .4); }
+.pcf .pcf-quadrado.fav-on .ico, .pj .pj-quadrado.fav-on .ico { fill: currentColor; }
+.pcf .pcf-quadrado.hoje-on { background: rgba(var(--acento-rgb), .3); color: var(--acento-texto); border-color: var(--acento-vivo); }
+.pcf .pcf-quadrado .lb-pontos { width: 24px; height: 9px; }
+
+/* O ingresso (nandflix) e o volume de mangá (nandchan), inclinados, flutuando */
+.pcf-ingresso-lugar { margin-left: auto; align-self: flex-end; flex: none; filter: drop-shadow(0 14px 26px rgba(0, 0, 0, .55)); }
+.pcf-ingresso-lugar:empty { display: none; }
+.pcf-ingresso {
+  position: relative; width: 236px; padding: 12px 16px 12px 20px; border-radius: 10px; color: #1A1426;
+  background: linear-gradient(135deg, var(--acento-claro-2), var(--acento-suave));
+  -webkit-mask: radial-gradient(circle 8px at 0 50%, transparent 98%, #000), radial-gradient(circle 8px at 100% 50%, transparent 98%, #000);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+  rotate: -3deg;
+}
+.pcf-ingresso small { display: block; font: 500 11px var(--ui); opacity: .65; }
+.pcf-ingresso strong { display: block; margin: 3px 0; font: 800 21px/1 var(--display); }
+.pcf-ingresso span { font-size: 12px; }
+.pcf-ingresso.pcf-volume { -webkit-mask: none; mask: none; padding-left: 30px; border-radius: 3px 8px 8px 3px; background: #F1ECE3; rotate: -2deg; }
+.pcf-volume .pcf-lombada { position: absolute; left: 0; top: 0; bottom: 0; width: 14px; border-radius: 3px 0 0 3px; background: var(--acento-vivo); }
+
+/* ---------- Corpo: duas colunas ---------- */
+.painel-corpo.pcf-corpo, .painel-corpo.pj-corpo { grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; padding: 36px 56px 30px; }
+.pcf-rotulo { margin: 0 0 12px; font: 700 15px/1.3 var(--ui); color: var(--texto); }
+.pcf-principal > section, .pcf-principal > [data-pcf-fotogramas], .pcf-principal > .serie, .pcf-lado > section,
+.pj-principal > section, .pj-lado > section { margin: 0 0 30px; }
+.pcf-principal > section:last-child, .pcf-lado > section:last-child { margin-bottom: 0; }
+.pcf-corpo .painel-sinopse, .pj-corpo .painel-sinopse { margin: 0; font-size: 15px; line-height: 1.7; color: #D3CFDC; }
+.pcf-corpo .minha-nota-linha, .pj-corpo .minha-nota-linha { margin: 0; }
+.pcf-corpo .painel-vistos { margin: 0; }
+.pcf-corpo .painel-listas { margin: 0; gap: 8px; }
+/* Listas e tags: canto de 4px (a pílula fica só para os filtros) */
+.pcf-corpo .lista-chip { height: 30px; padding: 0 11px; border: 0; border-radius: 4px; background: rgba(var(--acento-rgb), .18); color: var(--acento-texto); }
+.pcf-corpo .lista-chip:hover { background: rgba(var(--acento-rgb), .28); }
+.pcf-corpo .lista-chip-mais { background: none; border: 1px dashed rgba(255, 255, 255, .18); color: var(--texto-2); }
+.pcf-corpo .lista-chip-mais:hover { background: rgba(255, 255, 255, .05); }
+
+/* Sua página: a citação num cartão, sem aspas decorativas */
+.pcf-pagina {
+  display: block; width: 100%; padding: 24px 30px 20px 30px; border-radius: 16px; text-align: left; cursor: pointer;
+  border: 1px solid rgba(var(--acento-rgb), .3); color: inherit; font: inherit;
+  background: linear-gradient(160deg, rgba(var(--acento-rgb), .12), rgba(255, 255, 255, .02) 50%);
+  transition: transform .25s var(--saida), box-shadow .25s var(--saida), border-color .2s;
+}
+.pcf-pagina:hover, .pcf-pagina:focus-visible { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(0, 0, 0, .45); border-color: rgba(var(--acento-rgb), .55); outline: none; }
+.pcf-pagina h3 { margin: 0 0 10px; font: 700 22px/1.3 var(--ui); color: #FFFFFF; text-wrap: balance; }
+.pcf-pagina p { margin: 0; font-size: 14.5px; line-height: 1.7; color: #CFCAD9; text-wrap: pretty; }
+.pcf-assinatura { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; color: var(--texto-2); }
+.pcf-assinatura .ico { width: 14px; height: 14px; }
+.pcf-escrever {
+  display: inline-flex; align-items: center; gap: 9px; height: 42px; padding: 0 16px; border-radius: var(--raio-botao, 6px); cursor: pointer;
+  border: 1px dashed rgba(var(--acento-rgb), .6); background: transparent; color: var(--acento-texto); font: 600 14px var(--ui);
+}
+.pcf-escrever:hover { background: rgba(var(--acento-rgb), .14); }
+.pcf-escrever .ico { width: 17px; height: 17px; }
+
+/* Fotogramas numa tira de película */
+.pcf-tira { position: relative; display: flex; gap: 6px; padding: 16px 8px; border-radius: var(--raio-botao, 6px); background: #000; overflow: hidden; }
+.pcf-tira::before, .pcf-tira::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 8px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 6px, rgba(255, 255, 255, .22) 6px 14px, transparent 14px 20px);
+}
+.pcf-tira::before { top: 4px; }
+.pcf-tira::after { bottom: 4px; }
+.pcf-fotograma { flex: 1; min-width: 0; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.pcf-fotograma img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; filter: saturate(.9); transition: transform .4s var(--saida), filter .3s; }
+.pcf-fotograma:hover img, .pcf-fotograma:focus-visible img { transform: scale(1.06); filter: none; position: relative; z-index: 1; }
+
+/* Lateral: notas numa linha, com os logotipos */
+.pcf-notas.notas-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.pcf-nota { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--texto); font: 700 20px/1 var(--ui); font-variant-numeric: tabular-nums; cursor: pointer; }
+.pcf-nota:hover span:last-child { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.pcf-nota .marca-imdb { font-size: 11px; padding: 3px 5px; border-radius: 3px; line-height: 1.1; }
+.pcf-nota .marca-tmdb { font-size: 11px; padding: 3px 6px; border-radius: 3px; line-height: 1.1; letter-spacing: .04em; }
+.pcf-nota .marca-lb svg.lb-pontos { width: 32px; height: 12px; }
+.pcf-nota .marca-anilist { font-size: 13px; margin: 0; color: #3DB4F2; }
+
+.pcf-ficha { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 9px 12px; margin: 0; font-size: 13.5px; line-height: 1.5; }
+.pcf-ficha dt { color: var(--texto-2); }
+.pcf-ficha dd { margin: 0; color: var(--texto); }
+.pcf-link, .pcf-ficha .link-pais { padding: 0; border: 0; background: none; font: inherit; color: var(--acento-texto); cursor: pointer; text-decoration: none; }
+.pcf-link:hover, .pcf-ficha .link-pais:hover { text-decoration: underline; }
+.pcf-premios .painel-fichas { gap: 8px; font-size: 13.5px; }
+
+/* Onde assistir: logotipo oficial do serviço e o nome */
+.pcf-servicos { display: flex; flex-wrap: wrap; gap: 8px; }
+.pcf-servico {
+  display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px 0 7px; border-radius: var(--raio-botao, 6px); border: 0;
+  background: var(--superficie-2); color: var(--texto); font: 500 13px var(--ui); cursor: pointer;
+  transition: transform .2s var(--saida), box-shadow .2s var(--saida);
+}
+.pcf-servico:hover, .pcf-servico:focus-visible { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0, 0, 0, .45); outline: none; }
+.pcf-servico.meu { box-shadow: inset 0 0 0 1.5px var(--acento-vivo); }
+.pcf-servico img { width: 30px; height: 30px; border-radius: var(--raio-botao, 6px); display: block; }
+.pcf-servicos-menores .pcf-servico { height: 36px; gap: 8px; padding: 0 12px 0 6px; font-size: 12.5px; }
+.pcf-servicos-menores .pcf-servico img { width: 24px; height: 24px; border-radius: 5px; }
+.pcf-sub { margin: 14px 0 8px; font-size: 12.5px; color: var(--texto-2); }
+.pcf-selos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pcf-selo { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--raio-botao, 6px); border: 1px solid rgba(255, 255, 255, .14); background: none; color: var(--texto-2); font: 500 13px var(--ui); }
+.pcf-selo .ico { width: 15px; height: 15px; }
+.pcf-stremio { cursor: pointer; color: var(--acento-texto); border-color: rgba(var(--acento-rgb), .55); }
+.pcf-stremio:hover { background: rgba(var(--acento-rgb), .16); }
+.pcf-vazio { margin: 0; font-size: 13.5px; color: var(--texto-2); }
+.pcf-credito { margin: 12px 0 0; font-size: 11.5px; color: var(--texto-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pcf-pagina, .pcf-servico, .pcf-fotograma img { transition: none; }
+  .pcf-pagina:hover, .pcf-servico:hover { transform: none; }
+  .pcf-fotograma:hover img { transform: none; }
+}
+@media (max-width: 1100px) {
+  .pcf .painel-cabecalho, .pj .painel-cabecalho { flex-wrap: wrap; padding: 0 36px; gap: 24px; }
+  .pcf .destaque-poster { width: 160px; }
+  .painel-corpo.pcf-corpo, .painel-corpo.pj-corpo { grid-template-columns: minmax(0, 1fr) 280px; gap: 32px; padding: 30px 36px 24px; }
+}
+
+/* As fileiras de baixo ("Outros filmes de…", "Mais de…") alinhadas com o corpo */
+html:not(.celular) .pcf-corpo ~ #painel-relacionados .relacionados,
+html:not(.celular) .pj-corpo ~ #painel-relacionados .relacionados { margin-left: 56px; margin-right: 56px; }
+
+/* Rótulos sem caixa alta espaçada (deixados pelo Lote 1 para este lote) */
+.onde-rotulo { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 600; }
+.jogo-tempo-item span { text-transform: none; letter-spacing: 0; font: 500 12.5px/1.2 var(--ui); }
+
+/* ---------- A página do jogo (nandplay) ---------- */
+.pj .jogo-fundo-img { object-position: center 30%; }
+.pj .pj-capa { width: 160px; flex: none; cursor: default; }
+.pj .pj-capa:hover { transform: none; }
+.pj .titulo-logo img { max-height: 110px; max-width: min(360px, 100%); object-position: left bottom; filter: drop-shadow(0 4px 20px rgba(0, 0, 0, .8)); }
+.pj .destaque-titulo h2 { font-size: 43px; line-height: 1; }
+.pj .pj-meta { margin: 12px 0 0; }
+.pj .painel-botoes { margin-top: 18px; align-items: center; gap: 8px; }
+.pj .pj-jogar { font-size: 15px; padding: 0 24px; }
+.pj .pj-jogar .ico { color: currentColor; }
+.pj-ver-steam-lugar { display: contents; }
+.pj .pj-ver-steam .steam-marca { width: 20px; height: 20px; }
+/* O status: um seletor só, que mostra o atual e abre o menu */
+.pj-status { position: relative; }
+.pj-status-btn {
+  display: inline-flex; align-items: center; gap: 12px; height: 46px; padding: 0 14px 0 16px; border-radius: var(--raio-botao, 6px);
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); color: var(--texto); cursor: pointer; backdrop-filter: blur(10px);
+}
+.pj-status-btn:hover { background: rgba(255, 255, 255, .15); }
+.pj-status-rot { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
+.pj-status-rot small { font: 500 11px var(--ui); color: var(--texto-2); }
+.pj-status-rot b { font: 700 14.5px var(--ui); }
+.pj-status-btn .ico { width: 16px; height: 16px; color: var(--texto-2); }
+.pj-status-menu {
+  position: absolute; left: 0; top: 52px; z-index: 8; width: 230px; padding: 6px; border-radius: 8px;
+  background: #1A1B1F; box-shadow: 0 18px 40px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 255, 255, .13);
+}
+.pj-status-menu button {
+  display: flex; width: 100%; justify-content: space-between; align-items: center; padding: 9px 10px; border: 0; border-radius: 4px;
+  background: none; font: 500 14px var(--ui); color: var(--texto-2); text-align: left; cursor: pointer;
+}
+.pj-status-menu button:hover, .pj-status-menu button:focus-visible { background: rgba(255, 255, 255, .06); color: var(--texto); outline: none; }
+.pj-status-menu button.atual { color: var(--acento-texto); font-weight: 700; }
+.pj-status-menu button .ico { width: 15px; height: 15px; }
+.pj-status-dia { display: flex; flex-direction: column; gap: 6px; margin: 6px 4px 4px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .1); font-size: 12px; color: var(--texto-2); }
+.pj-status-dia input { min-height: 34px; padding: 0 10px; border-radius: var(--raio-botao, 6px); border: 1px solid rgba(255, 255, 255, .16); background: transparent; color: var(--texto); font: 500 13px var(--ui); color-scheme: dark; }
+/* Tempo de jogo e jogado por último, à direita dos botões */
+/* À direita, na altura da logo (na fileira dos botões não cabe com o seletor de status) */
+.pj .jogo-tempo-steam.pj-tempo { position: absolute; right: 56px; bottom: 84px; margin: 0; gap: 26px; text-shadow: 0 1px 8px rgba(0, 0, 0, .7); text-align: right; }
+.pj .jogo-tempo-item span { font: 500 12.5px/1.2 var(--ui); letter-spacing: 0; text-transform: none; color: var(--texto-2); }
+.pj .jogo-tempo-item b { font: 700 21px/1.15 var(--ui); }
+
+/* Corpo */
+.pj-usuario > section { margin: 0 0 30px; }
+.pj-usuario > section:last-child { margin-bottom: 0; }
+.pj-principal > .pj-usuario { margin: 0 0 30px; }
+.pj-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pj-tag { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 2px 0 10px; border-radius: 4px; background: rgba(255, 255, 255, .06); color: var(--texto-2); font-size: 12.5px; }
+.pj-tag button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px; background: none; color: inherit; cursor: pointer; opacity: .6; }
+.pj-tag button:hover, .pj-tag button:focus-visible { opacity: 1; background: rgba(255, 255, 255, .1); outline: none; }
+.pj-tag button .ico { width: 13px; height: 13px; }
+.pj-tag-nova { width: 120px; height: 28px; padding: 0 10px; border-radius: 4px; border: 1px dashed rgba(255, 255, 255, .18); background: none; color: var(--texto); font: 500 12.5px var(--ui); }
+.pj-tag-nova:focus { width: 200px; border-style: solid; border-color: var(--acento-vivo); outline: none; }
+.pj-tag-nova::placeholder { color: var(--texto-2); }
+.pj-tags-sugeridas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pj-tag-sugerida { height: 24px; padding: 0 8px; border-radius: 4px; border: 0; background: none; color: var(--texto-2); font: 500 12px var(--ui); cursor: pointer; }
+.pj-tag-sugerida:hover { background: rgba(255, 255, 255, .06); color: var(--texto); }
+.pj-capturas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pj-captura { padding: 0; border: 0; border-radius: 8px; overflow: hidden; background: none; cursor: zoom-in; transition: transform .25s var(--saida), box-shadow .25s var(--saida); }
+.pj-captura img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.pj-captura:hover, .pj-captura:focus-visible { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0, 0, 0, .5); outline: none; }
+
+/* Onde jogar: a Steam primeiro */
+.pj-lojas { display: flex; flex-wrap: wrap; gap: 6px; }
+.pj-loja { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .06); color: var(--texto-2); font: 500 12.5px var(--ui); }
+button.pj-loja { cursor: pointer; }
+button.pj-loja:hover { background: rgba(255, 255, 255, .11); color: var(--texto); }
+.pj-loja-steam { background: rgba(19, 135, 184, .22); color: #FFFFFF; }
+.pj-loja-steam:hover { background: rgba(19, 135, 184, .34) !important; }
+.pj-loja-steam b { font-weight: 700; }
+.pj-loja-steam small { font-size: 12px; color: #9FD3F0; }
+.pj-loja-steam small:empty { display: none; }
+.pj-loja-steam .steam-marca { width: 16px; height: 16px; }
+.pj-ficha { grid-template-columns: 120px minmax(0, 1fr); }
+
+/* HowLongToBeat: uma régua só */
+.pj-regua { position: relative; margin: 10px 0 46px; }
+.pj-regua.com-voce { margin-top: 34px; }
+.pj-regua.duas-linhas { margin-bottom: 104px; }
+.pj-barra { height: 8px; border-radius: 1px; }
+.pj-marca { position: absolute; top: 22px; transform: translateX(-100%); text-align: right; font-size: 12px; line-height: 1.25; color: var(--texto-2); white-space: nowrap; }
+.pj-marca.inicio { transform: none; text-align: left; }
+.pj-marca.baixo { top: 58px; }
+.pj-marca b { display: block; font-size: 15px; color: var(--texto); }
+.pj-marca::before { content: ''; position: absolute; right: 0; top: -22px; width: 2px; height: 8px; background: var(--superficie); }
+.pj-marca.inicio::before { right: auto; left: -2px; }
+.pj-voce { position: absolute; bottom: 22px; transform: translateX(-50%); font-size: 12px; font-weight: 700; color: #FFFFFF; white-space: nowrap; }
+.pj-voce.inicio { transform: translateX(-4px); }
+.pj-voce.fim { transform: translateX(calc(-100% + 4px)); }
+.pj-voce::after { content: ''; position: absolute; left: 50%; top: 100%; width: 2px; height: 20px; margin: 2px 0 0 -1px; background: #FFFFFF; }
+.pj-voce.inicio::after { left: 4px; }
+.pj-voce.fim::after { left: auto; right: 3px; }
+.pj-hltb-link { display: inline-flex; align-items: center; gap: 7px; padding: 0; border: 0; background: none; color: var(--acento-texto); font: 600 13px var(--ui); cursor: pointer; }
+.pj-hltb-link:hover { text-decoration: underline; }
+.pj-hltb-link .ico { width: 14px; height: 14px; }
+.pj-rodape { margin: 30px 56px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pj-captura { transition: none; }
+  .pj-captura:hover { transform: none; }
+}
+.pj-principal > .painel-externo-aviso { margin: 0 0 24px; }
+/* Janelas médias: capa e ingresso um pouco menores para os botões caberem numa linha */
+@media (max-width: 1400px) {
+  .pcf .painel-cabecalho { gap: 26px; }
+  .pcf .destaque-poster { width: 180px; }
+  .pcf-ingresso { width: 210px; }
+  .pcf-ingresso strong { font-size: 19px; }
+  .pcf-ingresso span { font-size: 11px; }
+}
