@@ -1,0 +1,286 @@
+/* ==========================================================================
+   Visual novo, lote 2: a tela inicial no PC (destaque, objeto do sorteio e fileiras).
+   Carregado depois de styles.css; o celular tem a tela inicial dele (mobile/web/inicio.*)
+   e esconde o destaque e as fileiras daqui.
+   ========================================================================== */
+
+/* ---------- Destaque: a arte ocupa tudo, até o topo ---------- */
+
+#secao-sorteado { margin-bottom: 0; }
+#destaque { cursor: default; }
+#destaque .destaque-fundo { transition: filter .6s ease; }
+#destaque .destaque-fundo.saindo { z-index: -3; }
+/* A arte em paisagem (TMDB, Steam ou IGDB) por cima da capa desfocada, que fica de reserva. */
+.destaque-fundo-arte {
+  position: absolute; inset: 0; opacity: 0;
+  background: center 30% / cover no-repeat;
+  transform: scale(1.04);
+  transition: opacity .7s ease;
+}
+.destaque-fundo-arte.visivel { opacity: 1; animation: destaque-respira 24s ease-in-out infinite alternate; }
+#destaque.de-jogo .destaque-fundo-arte { background-position: center 20%; }
+@keyframes destaque-respira { to { transform: scale(1.1) translateX(-1.5%); } }
+
+#destaque .destaque-sombra {
+  background:
+    linear-gradient(180deg, rgba(5, 6, 8, .5) 0%, rgba(5, 6, 8, 0) 16%),
+    linear-gradient(90deg, rgba(5, 6, 8, .85) 0%, rgba(5, 6, 8, .45) 30%, rgba(5, 6, 8, 0) 55%),
+    linear-gradient(0deg, var(--canvas) 0%, rgba(5, 6, 8, 0) 35%);
+}
+#destaque.de-jogo .destaque-sombra {
+  background:
+    linear-gradient(180deg, rgba(5, 6, 8, .5) 0%, rgba(5, 6, 8, 0) 16%),
+    linear-gradient(90deg, rgba(5, 6, 8, .92) 0%, rgba(5, 6, 8, .62) 35%, rgba(5, 6, 8, .05) 70%),
+    linear-gradient(0deg, var(--canvas) 0%, rgba(5, 6, 8, 0) 45%);
+}
+/* nandplay: linhas de varredura de TV de tubo sobre a arte */
+#destaque.de-jogo .destaque-sombra::after {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, .26) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+
+/* Canto de baixo, à esquerda: logo, dados, notas, sinopse e botões. */
+#destaque .destaque-info {
+  left: calc(var(--margem) + 16px); bottom: 76px;
+  width: min(580px, 46%);
+  display: block; pointer-events: none;
+  transition: opacity .35s;
+}
+#destaque.de-jogo .destaque-info { width: min(640px, 50%); }
+#destaque .destaque-info > * { pointer-events: auto; }
+#destaque .destaque-titulo { display: block; width: fit-content; max-width: 100%; margin: 0 0 18px; cursor: pointer; }
+#destaque .destaque-titulo h2 { font: 700 52px/1.02 var(--display); letter-spacing: -.02em; text-shadow: 0 4px 30px rgba(0, 0, 0, .55); }
+#destaque .destaque-titulo .titulo-logo img { max-width: min(380px, 100%); max-height: 150px; filter: drop-shadow(0 4px 14px rgba(0, 0, 0, .7)); }
+#destaque.de-jogo .destaque-titulo { margin-bottom: 22px; }
+#destaque.de-jogo .destaque-titulo .titulo-logo img { max-height: 160px; }
+
+.destaque-meta {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
+  font: 400 14px/1.4 var(--ui); font-variant-numeric: tabular-nums; color: rgba(232, 235, 240, .78);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+}
+.destaque-meta b { color: var(--texto); font-weight: 700; }
+.destaque-meta:empty { display: none; }
+
+/* Jogo: três números (tempo de jogo, jogado por último, para zerar) */
+.destaque-hud { display: flex; flex-wrap: wrap; gap: 10px 34px; margin-bottom: 8px; }
+.destaque-hud small { display: block; margin-bottom: 2px; font: 500 12.5px/1.4 var(--ui); color: rgba(232, 235, 240, .7); }
+.destaque-hud b { font-size: 26px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; color: var(--texto); }
+.destaque-hud .principal b { font-size: 34px; color: #fff; }
+
+/* Notas: a marca do site e o número, sem caixa; por último, onde assistir com o logotipo do serviço. */
+.destaque-notas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-top: 14px; font-size: 14px; font-weight: 700; }
+.destaque-notas:empty { display: none; }
+.destaque-notas .nota-chip {
+  height: auto; padding: 0; gap: 7px; border: 0; border-radius: 0; background: none;
+  font-size: 14px; font-weight: 700; text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+}
+.destaque-notas .nota-chip:hover, .destaque-notas .destaque-onde:is(button):hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
+.destaque-notas :is(.nota-metascore, .nota-rotten, .nota-tmdb) { display: none; }
+.destaque-notas .marca-imdb { font-size: 10px; padding: 1px 4px; border-radius: 3px; }
+.destaque-onde {
+  display: inline-flex; align-items: center; gap: 7px; padding: 0; border: 0; background: none;
+  color: var(--texto); font: 500 14px/1 var(--ui); text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+}
+button.destaque-onde { cursor: pointer; }
+.destaque-onde img { width: 22px; height: 22px; border-radius: 5px; }
+.destaque-onde .ico { width: 17px; height: 17px; }
+
+#destaque .sinopse { margin: 16px 0 0; max-width: 540px; font-size: 15px; line-height: 1.6; color: #CFCAD9; -webkit-line-clamp: 3; }
+
+#destaque .destaque-botoes { gap: 10px; margin-top: 24px; flex-wrap: nowrap; }
+#destaque.de-jogo .destaque-botoes { gap: 12px; margin-top: 18px; }
+#destaque .destaque-botoes .btn {
+  min-height: 46px; height: 46px; padding: 0 22px; gap: 9px; border-radius: var(--raio-botao, 6px);
+  font: 700 14.5px/1 var(--ui); white-space: nowrap;
+}
+#destaque.de-jogo .destaque-botoes .btn { min-height: 50px; height: 50px; }
+#destaque .destaque-botoes .btn .ico { width: 18px; height: 18px; }
+/* Os tokens do lote 1 (--acento-chapado, --sobre-chapado, --raio-botao), com reserva para antes da junção */
+#destaque .destaque-botoes .btn-primario { background: var(--acento-chapado, var(--acento-vivo)); color: var(--sobre-chapado, #0B0A10); }
+#destaque .destaque-botoes .btn-primario:hover { background: var(--acento-brilho); }
+#destaque .destaque-botoes .btn-jogar { padding: 0 30px; font-size: 16px; }
+#destaque .destaque-botoes .btn-vidro { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); color: var(--texto); backdrop-filter: blur(10px); }
+#destaque .destaque-botoes .btn-vidro:hover { background: rgba(255, 255, 255, .16); }
+#destaque .destaque-botoes .btn-quadrado { width: 46px; padding: 0; }
+#destaque .destaque-botoes .btn-vidro.visto-on { background: rgba(var(--acento-rgb), .3); border-color: var(--acento-vivo); color: var(--acento-claro); }
+#destaque .destaque-botoes .btn-vidro.fav-on { color: var(--acento-brilho); }
+#destaque .destaque-botoes .btn-steam { gap: 10px; }
+#destaque .destaque-botoes .steam-marca { width: 20px; height: 20px; flex: none; }
+#destaque .btn-sortear .ico { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1); }
+#destaque .btn-sortear:hover .ico { transform: rotate(90deg); }
+
+/* Som do trailer: no canto de cima, fora do caminho do ingresso */
+#destaque .destaque-controles .btn-redondo { border-radius: 6px; }
+
+/* Sorteados anteriores: setas e pontos juntos, embaixo, no meio */
+.destaque-historico { position: absolute; left: 50%; bottom: 14px; translate: -50% 0; z-index: 2; display: flex; align-items: center; gap: 4px; opacity: .55; transition: opacity .15s ease-out; }
+#destaque:hover .destaque-historico, .destaque-historico:focus-within { opacity: 1; }
+.destaque-historico .pontos { position: static; translate: none; }
+.destaque-historico .pontos button { height: 32px; }
+.destaque-historico .seta { position: static; margin: 0; width: 32px; height: 32px; border-radius: 6px; opacity: 1; background: none; border-color: transparent; color: var(--texto-2); }
+.destaque-historico .seta:hover { color: var(--texto); background: rgba(255, 255, 255, .1); }
+.destaque-historico .seta:disabled { display: grid; visibility: hidden; }
+.destaque-historico .seta .ico { width: 18px; height: 18px; }
+
+/* ---------- O objeto do sorteio (ingresso; cartucho no nandplay) ---------- */
+
+.bilhete {
+  --pw: 104px; --ph: 156px; --pad: 18px; --canhoto: 76px;
+  position: absolute; right: calc(var(--margem) + 16px); bottom: 84px; z-index: 1;
+  width: 430px; display: grid; grid-template-columns: minmax(0, 1fr) var(--canhoto);
+  text-align: left; cursor: pointer;
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .5));
+  transition: transform .5s var(--saida);
+}
+.bilhete.girando { transform: translateY(-6px); }
+.bilhete-corpo { display: grid; grid-template-columns: var(--pw) minmax(0, 1fr); gap: 18px; padding: var(--pad); }
+.bilhete-janela { position: relative; width: var(--pw); height: var(--ph); border-radius: 4px; overflow: hidden; background: #000; }
+.bilhete-janela .capa { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0; }
+.bilhete-janela .capa::after, .bilhete-janela .capa > :not(img, .capa-vazia) { display: none; }
+.bilhete-janela .capa-vazia strong { font-size: 12px; }
+.bilhete-rolo { display: flex; flex-direction: column; will-change: transform; }
+.bilhete-rolo img { width: var(--pw); height: var(--ph); object-fit: cover; flex: none; display: block; }
+.bilhete-janela::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .55), transparent 22%, transparent 78%, rgba(0, 0, 0, .55));
+}
+.bilhete.girando .bilhete-janela::after { opacity: 1; }
+/* O texto: um grupo encostado no topo do pôster, outro na base */
+.bilhete-info { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; height: var(--ph); }
+.bilhete .muda { transition: opacity .25s; }
+.bilhete.girando .muda { opacity: .2; }
+.bilhete-topo { display: block; font: 700 10px/1.4 var(--ui); letter-spacing: .18em; text-transform: uppercase; opacity: .55; }
+.bilhete-titulo {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: 8px; font: 700 19px/1.18 var(--display); letter-spacing: -.01em; overflow-wrap: anywhere;
+}
+.bilhete-sub { display: block; font-size: 12.5px; line-height: 1.5; opacity: .75; }
+/* O canhoto: separado pelo picote, com o número da sessão */
+.bilhete-canhoto { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: var(--pad) 0; border-left: 2px dashed rgba(0, 0, 0, .18); }
+.bilhete-canhoto .vert { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 10px/1 var(--ui); letter-spacing: .18em; text-transform: uppercase; opacity: .55; }
+.bilhete-canhoto b { writing-mode: vertical-rl; transform: rotate(180deg); font: 700 30px/1 var(--display); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+
+/* Ingresso de papel, na cor da plataforma, com os recortes no picote */
+.bilhete.ingresso {
+  --papel: color-mix(in srgb, var(--acento-claro) 78%, #F4F1F6);
+  color: color-mix(in srgb, var(--acento) 22%, #17131F);
+  background: var(--papel); border-radius: 8px;
+  -webkit-mask: radial-gradient(circle 10px at calc(100% - var(--canhoto)) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 10px at calc(100% - var(--canhoto)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+  mask: radial-gradient(circle 10px at calc(100% - var(--canhoto)) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 10px at calc(100% - var(--canhoto)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+}
+.bilhete.ingresso .bilhete-canhoto { background: color-mix(in srgb, var(--papel) 90%, var(--acento)); border-radius: 0 8px 8px 0; }
+
+/* Cartucho de plástico: a janela é a etiqueta e o canhoto vira a pega com ranhuras */
+.bilhete.cartucho {
+  --canhoto: 26px; width: 380px; color: #D6F5E4; background: #1C211E;
+  border-radius: 4px 4px 10px 10px; padding-top: 8px; padding-bottom: 12px;
+  clip-path: polygon(0 14px, 14px 0, 34% 0, 34% 7px, 66% 7px, 66% 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.bilhete.cartucho::after {
+  content: ''; position: absolute; left: 22px; right: calc(var(--canhoto) + 22px); bottom: 5px; height: 5px; opacity: .55;
+  background: repeating-linear-gradient(90deg, #C9A24A 0 4px, transparent 4px 7px);
+}
+.bilhete.cartucho .bilhete-janela { box-shadow: 0 0 0 3px #2A312D; }
+.bilhete.cartucho .bilhete-topo { color: #35E58E; opacity: 1; }
+.bilhete.cartucho .bilhete-canhoto { border-left: 0; background: repeating-linear-gradient(180deg, rgba(0, 0, 0, .35) 0 3px, transparent 3px 8px) center / 12px 100% no-repeat, #232A26; }
+
+/* Enquanto gira: o destaque escurece um pouco, mas continua com o anterior */
+#destaque.sorteando .destaque-info { opacity: .25; pointer-events: none; }
+#destaque.sorteando .destaque-info > * { pointer-events: none; }
+#destaque.sorteando .destaque-fundo { filter: brightness(.55) blur(3px); }
+#destaque.sorteando .bilhete { cursor: default; }
+
+/* Janela mais estreita: o texto ganha espaço e o objeto encolhe; abaixo disso, some */
+@media (max-width: 1279px) {
+  #destaque .destaque-info { width: min(540px, 52%); }
+  .bilhete { --pw: 88px; --ph: 132px; --pad: 14px; --canhoto: 60px; width: 350px; }
+  .bilhete.cartucho { width: 320px; }
+  .bilhete-titulo { font-size: 16px; }
+}
+@media (max-width: 1020px) {
+  .bilhete { display: none; }
+  #destaque .destaque-info, #destaque.de-jogo .destaque-info { width: min(620px, calc(100% - 2 * var(--margem) - 32px)); }
+  #destaque .destaque-botoes { flex-wrap: wrap; }
+}
+
+/* ---------- Película: a divisória do nandflix, embaixo do destaque ---------- */
+
+html:not([data-tema]) #secao-sorteado::after, html[data-tema="roxo"] #secao-sorteado::after {
+  content: ''; display: block; height: 18px; margin: 0 var(--margem); opacity: .35;
+  background: repeating-linear-gradient(90deg, transparent 0 9px, var(--acento-vivo) 9px 19px, transparent 19px 28px) 0 4px / 100% 10px no-repeat;
+}
+
+/* ---------- Fileiras ---------- */
+
+html:not(.celular) :is(#secao-recentes, #secao-favoritos) { margin: 26px 0 10px; }
+html:not(.celular) :is(#secao-recentes, #secao-favoritos) .cabecalho-fileira { align-items: baseline; gap: 16px; padding-bottom: 0; margin-bottom: 8px; border-bottom: 0; }
+html:not(.celular) :is(#secao-recentes, #secao-favoritos) .titulo-secao { font: 700 21px/1 var(--display); letter-spacing: -.01em; }
+html:not(.celular) :is(#secao-recentes, #secao-favoritos) .kicker { font-size: 13.5px; font-weight: 400; }
+html:not(.celular) #secao-favoritos .divisor-v { display: none; }
+html.celular #secao-recentes { display: none !important; }
+#secao-sorteado[hidden] + #secao-recentes[hidden] + #secao-favoritos[hidden] + #secao-todos { margin-top: 16px; }
+
+html:not(.celular) .fileira { gap: 18px; padding-top: 12px; padding-bottom: 20px; }
+
+/* Jogados recentemente: seis capas com o tempo de jogo e quando foi */
+.recentes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px; padding: 12px 0 20px; }
+.recente { display: block; min-width: 0; padding: 0; border: 0; background: none; color: var(--texto); font: inherit; text-align: left; cursor: pointer; }
+.recente .capa { transition: transform .3s var(--saida), box-shadow .3s var(--saida); }
+.recente-titulo { display: block; margin-top: 10px; font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recente-tempo { display: flex; justify-content: space-between; gap: 10px; margin-top: 4px; font-size: 12.5px; color: var(--texto-2); white-space: nowrap; }
+.recente-tempo b { color: var(--texto); font-weight: 500; }
+.recente:focus-visible { outline: none; }
+.recente:focus-visible .capa { box-shadow: 0 0 0 2px var(--anel-foco); }
+@media (max-width: 1100px) {
+  .recentes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .recente:nth-child(n + 5) { display: none; }
+}
+
+/* ---------- Capas das fileiras e da grade: sobem no hover, com sombra escura ---------- */
+
+/* A legenda embaixo da capa: título e, nos filmes, ano e direção */
+html:not(.celular) :is(.fileira, .lista.grade) .info { display: block; margin-top: 10px; min-width: 0; font-size: 13px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html:not(.celular) :is(.fileira, .lista.grade) .info h3 { font: 500 13px/1.3 var(--ui); }
+html:not(.celular) :is(.fileira, .lista.grade) .info :is(.info-meta, .info-status-jogo, .info-dev) { display: none; }
+html:not(.celular) :is(.fileira, .lista.grade) .info .info-ano { display: inline; margin-right: 8px; font-size: 12px; color: var(--texto-3); }
+html:not(.celular) :is(.fileira, .lista.grade) .info .info-ano:empty { display: none; }
+html:not(.celular) :is(.fileira, .lista.grade) .info button.info-diretor {
+  display: inline; max-width: 100%; padding: 0; border: 0; background: none; cursor: pointer;
+  font: 400 12px/1.3 var(--ui); color: var(--texto-3); text-align: left;
+}
+html:not(.celular) :is(.fileira, .lista.grade) .info button.info-diretor:hover { color: var(--texto); }
+html:not(.celular) :is(.fileira, .lista.grade) .cartao { min-width: 0; } /* o título comprido não alarga a capa */
+html:not(.celular) .lista.grade { gap: 28px 20px; }
+html:not(.celular) .lista.grade .cartao { contain-intrinsic-size: auto 320px; }
+
+@media (hover: hover) and (pointer: fine) {
+  html:not(.celular) .fileira .cartao:hover { transform: none; }
+  html:not(.celular) :is(.fileira, .lista.grade) .cartao .capa-area { transition: transform .3s var(--saida), box-shadow .3s var(--saida); }
+  html:not(.celular) :is(.fileira, .lista.grade) .cartao:hover .capa-area { transform: translateY(-6px); box-shadow: 0 14px 26px rgba(0, 0, 0, .55); }
+  .recente:hover .capa { transform: translateY(-6px); box-shadow: 0 14px 26px rgba(0, 0, 0, .55); }
+}
+html:not(.celular) .fileira .cartao:focus-visible { transform: none; }
+html:not(.celular) :is(.fileira, .lista.grade) .cartao:focus-visible .capa-area { transform: translateY(-6px); box-shadow: 0 14px 26px rgba(0, 0, 0, .55); }
+
+/* ---------- Reduzir movimento ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .destaque-fundo-arte.visivel { animation: none; }
+  .destaque-fundo-arte, .bilhete, .bilhete .muda, #destaque .destaque-info, #destaque .destaque-fundo, #destaque .btn-sortear .ico, .recente .capa { transition-duration: 1ms !important; }
+  #destaque .btn-sortear:hover .ico, .recente:hover .capa { transform: none; }
+  html:not(.celular) :is(.fileira, .lista.grade) .cartao:hover .capa-area, html:not(.celular) :is(.fileira, .lista.grade) .cartao:focus-visible .capa-area { transform: none !important; }
+}
+
+/* ---------- "Todos": título, progresso e ferramentas numa faixa só, sem caixa ---------- */
+
+html:not(.celular) #secao-todos { margin: 26px 0 0; padding: 0 0 56px; border-radius: 0; background: none; }
+html:not(.celular) #secao-todos .cabecalho-secao { align-items: flex-end; padding-bottom: 18px; border-bottom-color: rgba(255, 255, 255, .07); }
+html:not(.celular) #secao-todos .cabecalho-titulos .titulo-secao { font: 700 21px/1 var(--display); letter-spacing: -.01em; }
+html:not(.celular) #secao-todos .estatisticas { gap: 8px; width: min(100%, 280px); padding-bottom: 0; font-size: 13px; }
+html:not(.celular) #secao-todos .est-vistos { gap: 8px; }
+html:not(.celular) #secao-todos .est-fav { display: none; }
+html:not(.celular) #secao-todos .barra { height: 6px; border-radius: 1px; background: rgba(255, 255, 255, .07); }
+html:not(.celular) #secao-todos .barra-cheia { border-radius: 0; background: var(--acento-chapado, var(--acento-vivo)); }
+html:not(.celular) #secao-todos .barra-ferramentas { margin: 18px 0 26px; }

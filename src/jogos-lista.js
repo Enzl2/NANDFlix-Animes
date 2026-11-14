@@ -346,27 +346,11 @@ fundoDesfocado = (el, f) => {
   $('.destaque-fundo-capa', el).style.backgroundImage = `url("${String(f.fundo || f.capa).replace(/"/g, '%22')}")`;
 };
 
-// Destaque: no jogo, o botão grande abre a Steam, e sem "visto" nem Letterboxd.
-const mostrarDestaqueFilme = mostrarDestaque;
-mostrarDestaque = (opcoes = {}) => {
-  mostrarDestaqueFilme(opcoes);
-  const f = porId(filmeNoDestaque());
-  if (!f || !ehJogo(f)) return;
-  const sinopse = $('#destaque [data-info="sinopse"]'); // a sinopse do jogo está no item (f.sinopse), não em f.info
-  if (sinopse && f.sinopse) { sinopse.textContent = f.sinopse; sinopse.hidden = false; }
-  const botoes = $('#destaque .destaque-botoes');
-  if (!botoes) return;
-  $('[data-d="letterboxd"]', botoes)?.remove();
-  $('[data-d="visto"]', botoes)?.remove();
-  const assistir = $('[data-d="assistir"]', botoes);
-  if (f.steam) {
-    assistir.dataset.d = 'steam';
-    assistir.innerHTML = `${icone('Gamepad2')} ${rotuloAcaoSteam(acaoSteamDoJogo(f))}`;
-  } else assistir.remove();
-};
+// Destaque do jogo (montado em destaque-visual.js): o botão principal usa a Steam e "Ver na Steam" abre a loja.
 $('#destaque').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-d="steam"]');
-  if (b) abrirSteamDoJogo(filmeNoDestaque());
+  if (destaqueGirando()) return;
+  const b = e.target.closest('[data-d="steam"], [data-d="steam-loja"]');
+  if (b) destaqueUsarSteam(porId(filmeNoDestaque()), { loja: b.dataset.d === 'steam-loja' });
 });
 
 const previaHTMLFilme = previaHTML;
@@ -577,6 +561,7 @@ function aplicarJogosLista() {
   if (dicaSem) dicaSem.textContent = jogos ? 'Busque por nome, ano, console, desenvolvedor ou tag.' : 'Busque por título, ano, diretor ou notas.';
   aplicarVazioDaPlataforma();
   pedirSteamDaLista();
+  destaqueAtualizarSteam(); // o que a Steam diz também aparece no destaque
 }
 
 // A lista da plataforma está vazia (mesmo que as outras tenham itens): convida a adicionar.
@@ -628,9 +613,44 @@ atualizarEstatisticas = () => {
   $('#est-vistos-texto').textContent = `${zerados} de ${lista.length} zerados (${lista.length ? Math.round((zerados / lista.length) * 100) : 0}%)`;
   $('#btn-capas-faltam').hidden = true;
 };
+// ---- "Jogados recentemente": os últimos jogos da lista que você abriu na Steam ----
+const MAX_RECENTES_JOGO = 6;
+// "há 5 dias", "em outubro", "em 2024".
+function quandoJogouTexto(t, agora = Date.now()) {
+  const dias = Math.floor((agora - t) / 86400000);
+  if (dias <= 0) return 'hoje';
+  if (dias === 1) return 'ontem';
+  if (dias < 31) return `há ${dias} dias`;
+  const d = new Date(t);
+  if (d.getFullYear() === new Date(agora).getFullYear()) return `em ${d.toLocaleDateString('pt-BR', { month: 'long' })}`;
+  return `em ${d.getFullYear()}`;
+}
+function renderRecentesJogo() {
+  const secao = $('#secao-recentes');
+  if (!secao) return;
+  const jogos = ehPlataformaJogos() && temBibliotecaSteam()
+    ? itensDaPlataforma().filter((f) => ehJogo(f) && ultimaVezDoJogo(f) > 0).sort((a, b) => ultimaVezDoJogo(b) - ultimaVezDoJogo(a)).slice(0, MAX_RECENTES_JOGO)
+    : [];
+  secao.hidden = jogos.length === 0;
+  const chave = jogos.map((f) => [f.id, srcCapa(f), f.titulo, (contaSteamDoJogo(f) || {}).minutos, quandoJogouTexto(ultimaVezDoJogo(f))].join('|')).join('\n');
+  if (secao.dataset.chave === chave) return; // nada mudou: as capas não piscam
+  secao.dataset.chave = chave;
+  $('#recentes').innerHTML = jogos.map((f) => `
+    <button type="button" class="recente" data-id="${f.id}" aria-label="${esc(f.titulo)}">
+      ${capaHTML(f)}
+      <span class="recente-titulo">${esc(f.titulo)}</span>
+      <span class="recente-tempo"><b>${esc(tempoDeJogoSteam((contaSteamDoJogo(f) || {}).minutos) || 'Sem tempo')}</b><span>${esc(quandoJogouTexto(ultimaVezDoJogo(f)))}</span></span>
+    </button>`).join('');
+}
+$('#recentes')?.addEventListener('click', (e) => {
+  const b = e.target.closest('.recente');
+  if (b) abrirPainel(b.dataset.id);
+});
+
 const renderFileiraOriginal = renderFileira;
 renderFileira = () => {
   renderFileiraOriginal();
+  renderRecentesJogo();
   if (ehPlataformaJogos()) { const k = $('#kicker-favoritos'); k.textContent = k.textContent.replace(/ vistos?$/, ' zerados'); }
 };
 

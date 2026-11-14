@@ -2188,7 +2188,7 @@ function sortear({ rolar = true, avisarSeVazio = true } = {}) {
   const f = lista.find((x) => x.id === proximoSorteio) || aleatorio(lista);
   const resto = lista.filter((x) => x.id !== f.id);
   proximoSorteio = resto.length ? aleatorio(resto).id : null;
-  if (proximoSorteio) trailerDe(proximoSorteio);
+  if (proximoSorteio) { trailerDe(proximoSorteio); destaqueArteDe(porId(proximoSorteio)); }
 
   const filtros = [];
   const daTela = !fs.soWatchlist; // a watchlist de hoje ignora os filtros da tela
@@ -2203,8 +2203,14 @@ function sortear({ rolar = true, avisarSeVazio = true } = {}) {
   estado.historico.push(f.id);
   if (estado.historico.length > 12) estado.historico.shift();
   estado.indiceDestaque = estado.historico.length - 1;
-  mostrarDestaque();
   if (rolar) rolarTopo();
+  // Com um destaque já na tela, as capas giram na janela do ingresso (ou do cartucho) e só
+  // então ele troca; a arte e o trailer do sorteado vão sendo buscados enquanto gira.
+  if (destaquePodeGirar()) {
+    destaqueArteDe(f);
+    trailerDe(f.id);
+    destaqueGirar(f, candidatos.map(srcCapa), () => mostrarDestaque({ doSorteio: true }));
+  } else mostrarDestaque();
 }
 
 function mostrarDestaque(opcoes = {}) {
@@ -2212,73 +2218,81 @@ function mostrarDestaque(opcoes = {}) {
   const f = porId(filmeNoDestaque());
   if (!f) { fecharDestaque(); return; }
   const token = ++tokenDestaque;
+  destaqueCancelarGiro();
   const n = estado.historico.length;
   const i = estado.indiceDestaque;
   $('#secao-sorteado').hidden = false;
   atualizarTopo();
-  el.className = 'destaque';
+  // O fundo anterior fica por baixo enquanto o novo aparece: o destaque nunca esvazia.
+  const fundoVelho = $('.destaque-fundo:not(.saindo)', el);
+  el.className = `destaque${ehJogo(f) ? ' de-jogo' : ''}`;
+  el.dataset.plataforma = plataformaAtual().id; // o sorteio só gira dentro da mesma plataforma (destaquePodeGirar)
+  const sinopse = ehJogo(f) ? '' : (f.info && f.info.sinopse) || '';
   el.innerHTML = `
-    <div class="destaque-fundo"><div class="destaque-fundo-capa"></div></div>
+    <div class="destaque-fundo"><div class="destaque-fundo-capa"></div><div class="destaque-fundo-arte"></div></div>
     <div class="destaque-sombra"></div>
     <div class="destaque-controles">
       <button class="btn-redondo" data-d="som" title="${tituloSom()}" aria-label="${tituloSom()}" hidden>${iconeSom()}</button>
     </div>
     <div class="destaque-info">
-      <div class="destaque-identidade">
-        <div class="destaque-poster" data-d="detalhes" title="Mais informações">${capaHTML(f, { tamanho: 'grande' })}</div>
-        <div class="destaque-titulo">
-          ${tituloHTML(f)}
-          <div class="meta-linha" data-info="meta">${metaHTML(f)}</div>
-        </div>
-      </div>
-      <div class="destaque-textos">
-        <div class="notas-linha" data-info="notas">${notasHTML(f.info, f)}</div>
-        <p class="sinopse" data-info="sinopse"${f.info && f.info.sinopse ? '' : ' hidden'}>${esc(f.info ? f.info.sinopse : '')}</p>
-        <p class="creditos" data-info="creditos">${creditosHTML(f)}</p>
-        <div class="destaque-botoes">
-          <button class="btn btn-assistir" data-d="assistir">${ICONE_PLAY} Assistir</button>
-          <button class="btn btn-claro" data-d="detalhes">${icone('Info')} Mais info</button>
-          <button class="redondo" data-d="sortear" title="Sortear outro" aria-label="Sortear outro">${icone('Dices')}</button>
-          <button class="redondo${f.visto ? ' visto-on' : ''}" data-d="visto" title="${f.visto ? 'Desmarcar visto' : 'Marcar como visto'}" aria-label="Visto" aria-pressed="${f.visto}">${icone('Check')}</button>
-          <button class="redondo" data-d="letterboxd" title="Logar no Letterboxd" aria-label="Logar no Letterboxd">${LB_PONTOS}</button>
-        </div>
-      </div>
+      <div class="destaque-titulo" data-d="detalhes" title="Mais informações">${tituloHTML(f)}</div>
+      <div class="destaque-meta" data-info="meta">${destaqueMetaHTML(f)}</div>
+      <div class="destaque-notas" data-info="notas">${destaqueNotasHTML(f)}</div>
+      <p class="sinopse" data-info="sinopse"${sinopse ? '' : ' hidden'}>${esc(sinopse)}</p>
+      <div class="destaque-botoes">${destaqueBotoesHTML(f)}</div>
     </div>
-    <button class="seta seta-esq" data-d="anterior" ${i <= 0 ? 'disabled' : ''} title="Sorteado anterior" aria-label="Sorteado anterior">${icone('ChevronLeft')}</button>
-    <button class="seta seta-dir" data-d="proximo" ${i >= n - 1 ? 'disabled' : ''} title="Próximo" aria-label="Próximo sorteado">${icone('ChevronRight')}</button>
-    ${n > 1 ? `<div class="pontos">${estado.historico.map((_, k) => `<button data-ir="${k}" class="${k === i ? 'ativo' : ''}" title="Sorteio ${k + 1}" aria-label="Sorteio ${k + 1}"></button>`).join('')}</div>` : ''}
-    <span class="dica-foco">Clique no trailer para ver em tela cheia</span>`;
+    ${bilheteHTML(f)}
+    ${n > 1 ? `<div class="destaque-historico">
+      <button class="seta seta-esq" data-d="anterior" ${i <= 0 ? 'disabled' : ''} title="Sorteado anterior" aria-label="Sorteado anterior">${icone('ChevronLeft')}</button>
+      <div class="pontos">${estado.historico.map((_, k) => `<button data-ir="${k}" class="${k === i ? 'ativo' : ''}" title="Sorteio ${k + 1}" aria-label="Sorteio ${k + 1}"></button>`).join('')}</div>
+      <button class="seta seta-dir" data-d="proximo" ${i >= n - 1 ? 'disabled' : ''} title="Próximo" aria-label="Próximo sorteado">${icone('ChevronRight')}</button>
+    </div>` : ''}`;
+  if (fundoVelho) {
+    fundoVelho.classList.add('saindo');
+    $('iframe', fundoVelho)?.remove();
+    $('.destaque-fundo', el).after(fundoVelho); // depois do novo: quem procura o fundo acha o novo
+    setTimeout(() => fundoVelho.remove(), 900);
+  }
   fundoDesfocado(el, f);
+  destaquePorArte(el, f, () => token === tokenDestaque);
   atualizarBotaoFiltros();
   entradaDestaque(el, opcoes);
   carregarExtrasDestaque(f, token);
 }
 
-// O fundo surge e se aproxima; depois rótulo, título, dados, sinopse e botões sobem em sequência.
-function entradaDestaque(el, { rapido = false } = {}) {
+// O fundo surge e se aproxima; depois título, dados, notas, sinopse e botões sobem em sequência.
+// Vindo do giro (`doSorteio`), o ingresso já está no lugar: só o resto entra.
+function entradaDestaque(el, { rapido = false, doSorteio = false } = {}) {
   if (Movimento.desligado()) { Movimento.cruzar($('.destaque-info', el), 120); return; }
   const fator = rapido ? 0.6 : 1;
-  Movimento.animar($('.destaque-fundo', el), [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 1, transform: 'none' }],
-    { duration: 700 * fator, fill: 'backwards' });
-  const t = $('.destaque-textos', el);
-  Movimento.sequencia([$('.destaque-poster', el), $('.destaque-titulo h2', el), $('.destaque-titulo .meta-linha', el), $('.sinopse', t), $('.destaque-botoes', t)],
+  Movimento.animar($('.destaque-fundo:not(.saindo)', el), [{ opacity: 0, transform: 'scale(1.05)' }, { opacity: 1, transform: 'none' }],
+    { duration: 800 * fator, fill: 'backwards' });
+  const info = $('.destaque-info', el);
+  Movimento.sequencia([$('.destaque-titulo', info), $('.destaque-meta', info), $('.destaque-notas', info), $('.sinopse', info), $('.destaque-botoes', info)],
     { y: 16, duracao: 500 * fator, passo: 60 * fator, atrasoInicial: 120 * fator });
+  if (!doSorteio && !rapido) Movimento.sequencia([$('.bilhete', el)], { y: 20, duracao: 600, atrasoInicial: 320 });
 }
 
 async function carregarExtrasDestaque(f, token) {
   const el = $('#destaque');
   carregarInfo(f).then((info) => {
     if (!info || token !== tokenDestaque) return;
-    $('[data-info="meta"]', el).innerHTML = metaHTML(f);
-    $('[data-info="notas"]', el).innerHTML = notasHTML(info, f);
-    $('[data-info="creditos"]', el).innerHTML = creditosHTML(f);
+    if (ehJogo(f)) return;
+    $('[data-info="meta"]', el).innerHTML = destaqueMetaHTML(f);
+    $('[data-info="notas"]', el).innerHTML = destaqueNotasHTML(f);
     const sinopse = $('[data-info="sinopse"]', el);
     sinopse.textContent = info.sinopse;
     sinopse.hidden = !info.sinopse;
   });
   const videoId = await trailerDe(f.id);
   if (token !== tokenDestaque) return;
-  if (!videoId) { el.classList.add('sem-trailer'); return; }
+  if (!videoId) {
+    el.classList.add('sem-trailer');
+    // Sem trailer, o botão principal leva aos detalhes.
+    const b = $('[data-d="trailer"]', el);
+    if (b) { b.dataset.d = 'detalhes'; b.innerHTML = `${icone('Info')}<span>Ver detalhes</span>`; }
+    return;
+  }
   f.trailerId = videoId;
   const fr = iframeTrailer(videoId, 'destaque-video', { mudo: !estado.som });
   fr.addEventListener('load', () => setTimeout(aplicarPausaDestaque, 800), { once: true });
@@ -2299,10 +2313,12 @@ $('#destaque').addEventListener('click', async (e) => {
   if (!id) return;
   const ir = e.target.closest('[data-ir]');
   if (ir) { estado.indiceDestaque = Number(ir.dataset.ir); mostrarDestaque({ rapido: true }); return; }
+  // Enquanto o sorteio gira, o destaque ainda mostra o anterior: os cliques esperam.
+  if (destaqueGirando()) return;
   const b = e.target.closest('[data-d]');
   if (!b) {
     // Clicar no trailer (fora dos textos e botões) abre o modo foco.
-    if (e.target.closest('.destaque-info')) return;
+    if (e.target.closest('.destaque-info, .destaque-historico')) return;
     const el = $('#destaque');
     if (el.classList.contains('com-trailer')) {
       const fr = $('.destaque-video', el);
@@ -2315,6 +2331,17 @@ $('#destaque').addEventListener('click', async (e) => {
   switch (b.dataset.d) {
     case 'assistir': abrirStremio(id); break;
     case 'letterboxd': abrirLetterboxd(id); break;
+    case 'trailer': { const fr = $('#destaque .destaque-video'); abrirFoco(id, Number(fr && fr.dataset.tempo) || 0); break; }
+    case 'favorito': {
+      const f = porId(id);
+      await alternar(id, 'favorito');
+      b.classList.toggle('fav-on', Boolean(f.favorito));
+      b.setAttribute('aria-pressed', String(Boolean(f.favorito)));
+      b.title = f.favorito ? 'Tirar dos favoritos' : 'Favoritar';
+      b.setAttribute('aria-label', b.title);
+      b.innerHTML = icone('Heart', { preenchido: Boolean(f.favorito) });
+      break;
+    }
     case 'sortear': girarDado(b); sortear({ rolar: false }); break;
     case 'filtros': abrirFiltrosSorteio(); break;
     case 'detalhes': abrirPainel(id); break;
@@ -2327,6 +2354,7 @@ $('#destaque').addEventListener('click', async (e) => {
       b.classList.toggle('visto-on', f.visto);
       b.setAttribute('aria-pressed', String(f.visto));
       b.title = f.visto ? 'Desmarcar visto' : 'Marcar como visto';
+      if ($('span', b)) $('span', b).textContent = f.visto ? 'Visto' : 'Já vi';
       break;
     }
   }
@@ -3211,7 +3239,7 @@ api.aoMudarFilme((novo) => {
   }
   agendarRender();
   if (filmeNoDestaque() === f.id) {
-    const capa = $('#destaque .destaque-poster .capa');
+    const capa = $('#destaque .bilhete-janela .capa');
     fundoDesfocado($('#destaque'), f);
     if (capa) capa.outerHTML = capaHTML(f, { tamanho: 'grande' });
   }

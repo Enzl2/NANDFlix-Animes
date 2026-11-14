@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   obterTrailer: chamar('trailer:obter'),
   definirTrailer: chamar('trailer:definir'),
   infoFilme: chamar('filme:info'),
+  fundoFilme: chamar('filme:fundo'),
   pesquisarAnilist: chamar('anilist:pesquisar'),
   atualizarAnilist: chamar('anilist:atualizar'),
   progressoSerie: chamar('serie:progresso'),

@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="visual-l1.css">
   <link rel="stylesheet" href="visual-l5.css">
   <link rel="stylesheet" href="visual-l4.css">
+  <link rel="stylesheet" href="visual-l2.css">
   <link rel="stylesheet" href="jogos-painel.css">
 </head>
 <body>
@@ -64,6 +65,15 @@
     <section class="bloco" id="secao-sorteado" hidden>
       <h2 class="titulo-secao sr" data-voc="{Item} sorteado">Filme sorteado</h2>
       <section class="destaque" id="destaque" aria-label="Filme sorteado" data-voc-aria="{Item} sorteado"></section>
+    </section>
+
+    <!-- nandplay (jogos-lista.js): os últimos jogos que você abriu na Steam -->
+    <section class="bloco" id="secao-recentes" hidden>
+      <div class="cabecalho-fileira">
+        <h2 class="titulo-secao">Jogados recentemente</h2>
+        <span class="kicker">da sua biblioteca da Steam</span>
+      </div>
+      <div class="recentes" id="recentes"></div>
     </section>
 
     <section class="bloco" id="secao-favoritos" hidden>
@@ -213,6 +223,7 @@
   <script src="anime.js"></script>
   <script src="jogos.js"></script>
   <script src="jogos-painel.js"></script>
+  <script src="destaque-visual.js"></script>
   <script src="app.js"></script>
   <script src="pagina.js"></script>
   <script src="story.js"></script>
