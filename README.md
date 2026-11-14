@@ -5,13 +5,22 @@
 <h1 align="center">NANDFlix</h1>
 
 <p align="center">
-  Sua lista de filmes com cara de streaming: capas, trailers tocando ao fundo, sorteio do que assistir
+  Sua lista de filmes com cara de streaming: capas, trailers, sorteio do que assistir
   e um clique para abrir o filme no <b>Stremio</b> ou registrar no <b>Letterboxd</b>.
 </p>
 
 ---
 
-O NANDFlix é um app de desktop para catalogar os filmes que você quer ver. Ele troca a planilha por uma interface no estilo Netflix: o filme sorteado ocupa o topo com o trailer rodando, as capas viram trailers ao passar o mouse e cada filme tem uma página de detalhes com logo, notas, sinopse, elenco e duração. Na hora de assistir, ele abre o filme direto no Stremio. Ele também guarda o que você viu num calendário, deixa você dar notas, escrever uma página sobre cada filme, montar tierlists, criar stories para o Instagram e ver as suas estatísticas. Tem também uma **versão para Android**, que pode ficar igual à do computador pela nuvem.
+O NANDFlix é um app de desktop para catalogar os filmes que você quer ver. Ele troca a planilha por uma interface no estilo Netflix: o filme sorteado ocupa o topo com a arte do filme e sai num ingresso de cinema, as capas viram trailers ao passar o mouse e cada filme tem uma página de detalhes com logo, notas, sinopse, elenco e duração. Na hora de assistir, ele abre o filme direto no Stremio. Ele também guarda o que você viu num calendário, deixa você dar notas, escrever uma página sobre cada filme, montar tierlists, criar stories para o Instagram e ver as suas estatísticas. Tem também uma **versão para Android**, que pode ficar igual à do computador pela nuvem.
+
+## Versão 2.0: visual novo
+
+A 2.0 redesenha o app inteiro, com um objeto para cada plataforma: o **nandflix** é um ingresso de cinema, o **nandchan** um volume de mangá e o **nandplay** um cartucho.
+
+- **Escolha da plataforma** com animação ao entrar: o canhoto do ingresso é rasgado, o volume abre, o cartucho encaixa no console.
+- **Início** com a arte até o topo e o sorteio girando dentro do ingresso (ou do cartucho).
+- **Páginas de filme e de jogo** novas: "Sessão nº", notas e serviços com os logotipos oficiais, status do jogo num seletor só, HowLongToBeat numa régua.
+- **Calendário, estatísticas e prêmios** redesenhados. Os prêmios de filmes (Oscar e os outros) ganharam o mesmo palco dos prêmios de jogos: uma categoria por vez, com o vencedor em destaque.
 
 ## nandflix, nandchan e nandhub
 
@@ -58,15 +67,15 @@ Para buscar em todos os consoles e ver a sua biblioteca da Steam, configure as c
 | Arquivo | O que é |
 |---|---|
 | [`NANDFlix.exe`](NANDFlix.exe) | Versão portátil para Windows: é só abrir, não precisa instalar. |
-| [`dist/NANDFlix-Setup-1.2.1.exe`](dist/NANDFlix-Setup-1.2.1.exe) | Instalador para Windows (cria atalho no menu Iniciar). |
-| [`dist/NANDFlix-1.2.1-portable.exe`](dist/NANDFlix-1.2.1-portable.exe) | O mesmo portátil da raiz, com o número da versão. |
-| [`NANDFlix-Android-1.2.1.apk`](../../releases/latest) | App para Android (na página de Releases). |
+| [`dist/NANDFlix-Setup-2.0.0.exe`](dist/NANDFlix-Setup-2.0.0.exe) | Instalador para Windows (cria atalho no menu Iniciar). |
+| [`dist/NANDFlix-2.0.0-portable.exe`](dist/NANDFlix-2.0.0-portable.exe) | O mesmo portátil da raiz, com o número da versão. |
+| [`NANDFlix-Android-2.0.0.apk`](../../releases/latest) | App para Android (na página de Releases). |
 
 Os mesmos arquivos estão na página de [Releases](../../releases).
 
 > O executável não é assinado digitalmente, então o Windows pode mostrar o aviso do SmartScreen na primeira vez. Clique em **Mais informações → Executar assim mesmo**.
 
-## NANDFlix no Android (versão 1.2.1)
+## NANDFlix no Android (versão 2.0.0)
 
 A mesma lista no celular, com uma interface feita para o toque, no jeito dos apps de streaming:
 
