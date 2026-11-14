@@ -1,0 +1,192 @@
+/* ==========================================================================
+   Visual novo, lote 4: calendário (tela 5) e estatísticas (tela 6).
+   Carregado depois de styles.css: só sobrescreve as regras destas telas.
+   ========================================================================== */
+
+/* A cor de cada plataforma (contorno das capas, selos, número grande). O
+   calendário e as estatísticas mostram uma plataforma por vez (no hub, a
+   escolhida no menu), então a cor vem do data-cor-plat da caixa. */
+[data-cor-plat] { --cor-plat: var(--acento-vivo); --cor-plat-rgb: var(--acento-rgb); --cor-plat-claro: var(--acento-brilho); --cor-plat-fundo: #120E18; }
+[data-cor-plat="nandflix"] { --cor-plat: #9F6BFF; --cor-plat-rgb: 159, 107, 255; --cor-plat-claro: #CDB4FF; --cor-plat-fundo: #150E22; }
+[data-cor-plat="nandanimes"] { --cor-plat: #FF7A2E; --cor-plat-rgb: 255, 122, 46; --cor-plat-claro: #FFC09A; --cor-plat-fundo: #1E0F07; }
+[data-cor-plat="nandplay"] { --cor-plat: #35E58E; --cor-plat-rgb: 53, 229, 142; --cor-plat-claro: #A6F5CB; --cor-plat-fundo: #08190F; }
+
+/* ---------- Calendário (só no PC: o celular tem o seu, em mobile/web/calendario.*) ---------- */
+
+html:not(.celular) .calendario-caixa { border-radius: 22px; padding: 26px 32px 28px; }
+
+/* Cabeçalho: "Novembro 2026", as setas, o resumo em texto e o fechar */
+html:not(.celular) .cal-topo { gap: 12px 22px; margin-bottom: 18px; }
+html:not(.celular) .cal-navegacao { gap: 12px; }
+html:not(.celular) .cal-navegacao h2 { margin-right: 4px; }
+html:not(.celular) .cal-setas { gap: 8px; }
+html:not(.celular) .cal-seta {
+  width: 40px; height: 40px; border-radius: 6px; background: transparent;
+  border: 1px solid rgba(232, 235, 240, .14); color: var(--texto-2);
+  transition: border-color .15s ease-out, color .15s ease-out;
+}
+html:not(.celular) .cal-seta:hover:not(:disabled) { border-color: var(--texto-2); color: var(--texto); background: transparent; }
+html:not(.celular) .cal-seta .ico { width: 18px; height: 18px; }
+html:not(.celular) .cal-fechar { width: 44px; height: 44px; margin-left: auto; }
+html:not(.celular) .cal-ir-hoje { border-radius: 6px; }
+
+.cal-resumo {
+  display: flex; align-items: baseline; gap: 6px 22px; min-width: 0; flex-wrap: wrap;
+  font-size: 14px; color: var(--texto-2); font-variant-numeric: tabular-nums;
+}
+.cal-resumo b { margin-right: 3px; color: var(--texto); font-size: 18px; font-weight: 700; }
+.cal-resumo button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; white-space: nowrap; }
+.cal-resumo-hoje { color: var(--cor-plat-claro) !important; }
+.cal-resumo-hoje b { color: var(--cor-plat-claro); }
+.cal-resumo-hoje:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cal-resumo-destaque { max-width: 340px; overflow: hidden; text-overflow: ellipsis; color: #FFE2A0 !important; }
+.cal-resumo-destaque b { margin: 0; font-size: 14px; color: #FFE2A0; }
+.cal-resumo-destaque:hover { text-decoration: underline; text-underline-offset: 3px; }
+.cal-resumo-destaque.sem-escolha { color: rgba(255, 226, 160, .6) !important; }
+/* No hub (com o menu da plataforma), o resumo desce para a linha de baixo. */
+html:not(.celular) .cal-topo:has(.escopo-seletor) .cal-resumo { order: 3; width: 100%; }
+
+html:not(.celular) .cal-semana { gap: 8px; }
+html:not(.celular) .cal-semana span { letter-spacing: 0; }
+html:not(.celular) .cal-grade { gap: 8px; }
+
+/* Dias: os vazios são só o número, sem fundo nem borda */
+html:not(.celular) .cal-dia { border-radius: 8px; background: transparent; }
+html:not(.celular) .cal-dia.futuro { background: transparent; box-shadow: none; }
+html:not(.celular) .cal-dia[data-c="dia"]:hover { background: rgba(232, 235, 240, .07); }
+html:not(.celular) .cal-dia.futuro .cal-numero { color: rgba(156, 159, 163, .6); }
+
+/* Hoje: a célula inteira marcada, sem selo */
+html:not(.celular) .cal-dia.hoje,
+html:not(.celular) .cal-dia.hoje.com-vistos { background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 2.5px #fff; }
+html:not(.celular) .cal-dia.hoje .cal-numero { font-size: 16px; color: var(--texto); font-weight: 700; }
+html:not(.celular) .cal-dia.hoje.com-vistos::before {
+  /* O anel branco fica por cima das capas (a célula é isolada, então vai num pseudo-elemento) */
+  content: ''; position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 2.5px #fff;
+}
+
+/* Capas nítidas: contorno fino na cor da plataforma, como cartas */
+html:not(.celular) .cal-vistos .cal-capa .capa { border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, .55), 0 0 0 1.5px var(--cor-plat); }
+html:not(.celular) .cal-vistos .cal-capa { border-radius: 6px; }
+/* O item do mês: contorno dourado, sem brilho */
+html:not(.celular) .cal-dia.com-filme-do-mes .cal-vistos .cal-capa:first-child .capa { box-shadow: 0 6px 18px rgba(0, 0, 0, .55), 0 0 0 2px var(--dourado); }
+html:not(.celular) .cal-trofeu {
+  top: 8px; right: 8px; bottom: auto; width: 22px; height: 22px; border-radius: 4px; z-index: 5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .5);
+}
+html:not(.celular) .cal-trofeu .ico { width: 13px; height: 13px; }
+
+/* Selo do dia: canto de 4px, embaixo à esquerda, na cor da plataforma */
+.cal-selo {
+  position: absolute; z-index: 4; left: 9px; bottom: 9px;
+  height: 22px; padding: 0 7px; border-radius: 4px;
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  background: var(--cor-plat); color: #0B0A10;
+  font: 700 11px/1 var(--ui); font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.cal-selo .ico { width: 13px; height: 13px; stroke-width: 2.6; }
+.cal-selo.zerado { background: var(--dourado); }
+/* Com watchlist no mesmo dia, as capas sobem e o selo vai junto */
+html:not(.celular) .cal-dia.misto .cal-selo { bottom: calc(50% + 4px); }
+
+/* Próximo episódio (ainda vai sair): tracejado, capa apagada, relógio */
+html:not(.celular) .cal-dia.a-sair { outline: 1.5px dashed rgba(var(--cor-plat-rgb), .55); outline-offset: -1.5px; }
+html:not(.celular) .cal-dia.a-sair .cal-fundo { opacity: .35; }
+html:not(.celular) .cal-dia.a-sair .cal-vistos .cal-capa { opacity: .45; filter: grayscale(.5); }
+html:not(.celular) .cal-dia.a-sair .cal-vistos .cal-capa .capa { box-shadow: 0 0 0 1.5px rgba(var(--cor-plat-rgb), .6); }
+html:not(.celular) .cal-dia.a-sair .cal-numero { color: var(--texto); font-weight: 700; }
+.cal-selo.a-sair { background: rgba(7, 6, 10, .8); color: var(--cor-plat-claro); box-shadow: inset 0 0 0 1px rgba(var(--cor-plat-rgb), .7); }
+
+/* Pensando em ver (watchlist): "talvez", capas apagadas e contorno tracejado */
+html:not(.celular) .cal-wl { left: 6px; right: 6px; bottom: 7px; flex-direction: column; align-items: center; gap: 4px; }
+html:not(.celular) .cal-wl small { font: 600 11px/1 var(--ui); color: var(--cor-plat-claro); }
+html:not(.celular) .cal-wl .cal-capa .capa {
+  border-radius: 4px; opacity: .6; box-shadow: none;
+  outline: 1.5px dashed var(--cor-plat-claro); outline-offset: 2px;
+  transition: opacity .15s ease-out;
+}
+html:not(.celular) .cal-wl .cal-capa:hover .capa { opacity: 1; }
+html:not(.celular) .cal-wl .cal-mais { background: var(--cor-plat); color: #0B0A10; box-shadow: 0 0 0 2px var(--superficie); border-radius: 4px; }
+html:not(.celular) .cal-dia.misto .cal-wl small { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.celular) .cal-seta, html:not(.celular) .cal-wl .cal-capa .capa { transition: none; }
+}
+
+/* ---------- Estatísticas (PC e celular) ---------- */
+
+/* O destaque: um número grande na cor da plataforma, uma frase curta e as capas em leque */
+.est-destaque {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 20px; align-items: center;
+  padding: 26px 30px 28px; border-radius: 8px; background: var(--cor-plat-fundo);
+}
+.est-numerao {
+  margin: 0; color: var(--cor-plat);
+  font: 700 clamp(84px, 9vw, 132px)/.9 var(--display); letter-spacing: -.05em; font-variant-numeric: tabular-nums;
+}
+.est-frase { margin: 10px 0 22px; max-width: 560px; font-size: 20px; line-height: 1.4; color: #E6DED9; text-wrap: pretty; }
+.est-frase:last-child { margin-bottom: 0; }
+/* "Criar stories": chapado na cor da plataforma, sem degradê nem brilho */
+.est-destaque .est-story {
+  border-radius: 6px; background: var(--cor-plat); color: #0B0A10; box-shadow: none;
+  font-weight: 700;
+}
+.est-destaque .est-story:hover { background: var(--cor-plat-claro); color: #0B0A10; }
+.est-leque { position: relative; height: 210px; }
+.est-leque button {
+  position: absolute; width: 120px; padding: 0; border: 0; background: none; cursor: pointer;
+  transition: transform .5s var(--saida);
+}
+.est-leque .capa { border-radius: 6px; box-shadow: 0 0 0 3px #fff, 0 12px 30px rgba(0, 0, 0, .6); }
+.est-leque button:nth-child(1) { left: 10px; top: 20px; rotate: -10deg; }
+.est-leque button:nth-child(2) { left: 105px; top: 0; rotate: 3deg; z-index: 2; }
+.est-leque button:nth-child(3) { left: 200px; top: 26px; rotate: 12deg; }
+.est-leque.qtd-1 button:nth-child(1) { left: 105px; top: 0; rotate: 3deg; }
+.est-leque.qtd-2 button:nth-child(1) { left: 60px; }
+.est-leque.qtd-2 button:nth-child(2) { left: 165px; top: 6px; rotate: 8deg; }
+.est-destaque:hover .est-leque button:nth-child(1) { transform: translate(-8px, -4px); }
+.est-destaque:hover .est-leque button:nth-child(3) { transform: translate(8px, -4px); }
+
+/* Os outros números: cinco colunas numa linha só, sem cartões */
+.est-fatos {
+  display: grid; grid-template-columns: repeat(var(--n, 5), auto); justify-content: space-between; gap: 24px;
+  margin: 2px 2px 6px; font-size: 13.5px; line-height: 1.4; color: var(--texto-2);
+}
+.est-fatos > span { min-width: 0; max-width: 260px; }
+.est-fatos b {
+  display: block; margin-bottom: 2px; color: var(--texto);
+  font: 700 26px/1.15 var(--display); letter-spacing: -.01em; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Gráficos: painéis de 8px, sem contorno nem brilho; barras de canto 1px */
+.est-cartao { border-radius: 8px; background: rgba(232, 235, 240, .035); box-shadow: none; }
+.est-cartao h3 .ico { color: var(--texto-2); }
+.est-barra { border-radius: 1px; background: rgba(var(--cor-plat-rgb), .55); transition: none; }
+.est-col.atual .est-barra { background: var(--cor-plat); }
+.est-col:hover .est-barra, .est-col:focus-visible .est-barra { background: rgba(var(--cor-plat-rgb), .55); }
+.est-col.atual:hover .est-barra, .est-col.atual:focus-visible .est-barra { background: var(--cor-plat); }
+.est-valor { color: var(--texto-2); }
+.est-dica { display: none; }
+.est-faixa { height: 8px; border-radius: 1px; background: rgba(255, 255, 255, .06); }
+.est-faixa span { border-radius: 1px; background: var(--cor-plat); }
+.est-barras li { grid-template-columns: minmax(0, 140px) 1fr 32px; }
+.est-num { color: var(--texto); }
+.est-capa .capa { border-radius: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .est-leque button { transition: none; }
+}
+
+/* Telas estreitas (e o celular): as capas saem e os números quebram em linhas */
+@media (max-width: 760px) {
+  .est-destaque { grid-template-columns: 1fr; padding: 22px 20px; }
+  .est-leque { display: none; }
+  .est-frase { font-size: 17px; }
+  .est-fatos { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; gap: 16px 20px; }
+  .est-fatos b { font-size: 22px; white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* O rótulo pequeno do alto (estatísticas e prêmios): sem caixa alta espaçada */
+.est-kicker { text-transform: none; letter-spacing: 0; font-size: 13px; }
