@@ -15,7 +15,7 @@ const { Igdb } = require('./lib/igdb');
 const steam = require('./lib/steam');
 const hltb = require('./lib/hltb');
 const { camposDoJogo } = require('./lib/jogo-usuario');
-const { novoFilme, novoJogo, ehJogo, juntar, resumo, acharRepetido, mesmoFilme, ehSerie, passoSerie, definirSerie, alternarEpisodio, statusSerie, comDia, comEpisodiosDoDia, vistoSerie } = require('./lib/filmes');
+const { novoFilme, novoJogo, ehJogo, juntar, resumo, acharRepetido, mesmoFilme, ehSerie, passoSerie, definirSerie, alternarEpisodio, statusSerie, comDia, comEpisodiosDoDia, vistoSerie, animesParaAtualizar } = require('./lib/filmes');
 const letterboxd = require('./lib/letterboxd');
 const importar = require('./lib/importar');
 const stremio = require('./lib/stremio');
@@ -298,9 +298,7 @@ let atualizandoSeries = false;
 async function atualizarSeriesEmExibicao() {
   if (atualizandoSeries || !config.nandroll) return; // NANDRoll é opcional (Configurações)
   atualizandoSeries = true;
-  const limite = Date.now() - 6 * 3600 * 1000;
-  const fila = filmes.filter((f) => f.anilistId && (ehSerie(f) || !f.anilistEm)
-    && (!f.anilistEm || (config.tmdbKey && !f.tmdbTvEm) || (['em exibição', 'não lançado', 'em hiato'].includes(f.exibicao) && Date.parse(f.anilistEm) < limite)));
+  const fila = animesParaAtualizar(filmes, { temTmdb: Boolean(config.tmdbKey) });
   try {
     for (const f of fila) {
       await processarAnilist(f);

@@ -15,7 +15,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Marcas } from '../../lib/marcas.js';
 import { Nuvem } from '../../lib/nuvem.js';
-import { novoFilme, novoJogo, ehJogo, acharRepetido, ehSerie, passoSerie, definirSerie, alternarEpisodio, statusSerie, comDia, comEpisodiosDoDia, vistoSerie } from '../../lib/filmes.js';
+import { novoFilme, novoJogo, ehJogo, acharRepetido, ehSerie, passoSerie, definirSerie, alternarEpisodio, statusSerie, comDia, comEpisodiosDoDia, vistoSerie, animesParaAtualizar } from '../../lib/filmes.js';
 import tmdb from '../../lib/tmdb.js';
 import anilist from '../../lib/anilist.js';
 import { Igdb } from '../../lib/igdb.js';
@@ -197,9 +197,7 @@ let atualizandoSeries = false;
 async function atualizarSeriesEmExibicao() {
   if (atualizandoSeries || !config.nandroll) return; // NANDRoll é opcional (Configurações)
   atualizandoSeries = true;
-  const limite = Date.now() - 6 * 3600 * 1000;
-  const fila = filmes.filter((f) => f.anilistId && (ehSerie(f) || !f.anilistEm)
-    && (!f.anilistEm || (config.tmdbKey && !f.tmdbTvEm) || (['em exibição', 'não lançado', 'em hiato'].includes(f.exibicao) && Date.parse(f.anilistEm) < limite)));
+  const fila = animesParaAtualizar(filmes, { temTmdb: Boolean(config.tmdbKey) });
   try {
     for (const f of fila) {
       await processarAnilist(f);

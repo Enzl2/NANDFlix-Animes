@@ -517,3 +517,28 @@ test('importar: numa franquia que se ramifica, cada série vira um item com o se
   const { series } = anilist.agruparLista([1, 2, 4, 5].map((id) => entrada(id, { status: 'completo', vistos: 12 }, FRANQUIA[id])));
   assert.deepStrictEqual(series.map((s) => s.temporadas.map((t) => t.anilistId)).sort(), [[1], [2], [4], [5]]);
 });
+
+const { animesParaAtualizar } = require('../lib/filmes');
+test('atualizar: séries terminadas são conferidas de novo toda semana (temporada ou filme anunciado depois)', () => {
+  const agora = Date.parse('2027-01-10T12:00:00Z');
+  const dia = 24 * 3600 * 1000;
+  const s = (id, dias, extra = {}) => ({ id, tipo: 'serie', anime: true, anilistId: id, exibicao: 'finalizado', anilistEm: new Date(agora - dias * dia).toISOString(), tmdbTvEm: 'x', ...extra });
+  const lista = [s(1, 2), s(2, 8), s(3, 30), s(4, 1, { temporadas: [{ exibicao: 'finalizado' }, { exibicao: 'não lançado' }] }), s(5, 0.1, { exibicao: 'em exibição' })];
+  assert.deepStrictEqual(animesParaAtualizar(lista, { agora }).map((f) => f.id), [4, 3, 2]);
+  assert.deepStrictEqual(animesParaAtualizar(lista, { agora, maxSemanais: 1 }).map((f) => f.id), [4, 3]);
+});
+test('atualizar: uma série conferida antes da regra nova das temporadas é conferida de novo', () => {
+  const agora = Date.parse('2026-11-17T12:00:00Z');
+  const f = { id: 1, tipo: 'serie', anilistId: 1, exibicao: 'finalizado', anilistEm: '2026-11-15T12:00:00Z', tmdbTvEm: 'x' };
+  assert.deepStrictEqual(animesParaAtualizar([f], { agora }).map((x) => x.id), [1]);
+  assert.deepStrictEqual(animesParaAtualizar([{ ...f, anilistEm: '2026-11-17T00:00:00Z' }], { agora }), []);
+});
+test('temporadas: a primeira temporada em ONA entra na série (Witch Hat Atelier)', async () => {
+  const rede = {
+    1: { ...MIDIA, id: 1, format: 'ONA', seasonYear: 2026, status: 'FINISHED', nextAiringEpisode: null, relations: { edges: [LIGA('SEQUEL', 2)] } },
+    2: { ...MIDIA, id: 2, format: 'TV', seasonYear: null, startDate: { year: null }, episodes: null, status: 'NOT_YET_RELEASED', nextAiringEpisode: null, relations: { edges: [LIGA('PREQUEL', 1, 'ONA')] } },
+  };
+  global.fetch = async (_u, o) => ({ status: 200, ok: true, headers: { get: () => null }, json: async () => ({ data: { Media: rede[JSON.parse(o.body).variables.id] || null } }) });
+  assert.deepStrictEqual((await anilist.temporadas(1)).map((t) => t.anilistId), [1, 2]);
+  assert.deepStrictEqual((await anilist.temporadas(2)).map((t) => t.anilistId), [1, 2]);
+});
