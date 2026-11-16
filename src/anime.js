@@ -36,21 +36,33 @@ function aplicarNandroll() {
 
 // A seção das Configurações.
 function nandrollConfigHTML() {
+  const ligado = nandrollLigado();
+  // Tudo do NANDRoll fica num grupo só, que abre e fecha: quem usa o app só
+  // para filmes passa direto. As opções aparecem com os animes ligados.
   return `
-      <div class="secao">
-        <h3>NANDRoll (animes)</h3>
+      <details class="secao nandroll-secao"${ligado ? ' open' : ''}>
+        <summary><h3>NANDRoll (animes)</h3><span class="nandroll-estado">${ligado ? 'ligado' : 'desligado'}</span></summary>
         <div class="opcoes-radio nandroll-opcoes">
-          <label><input type="checkbox" id="cfg-nandroll" ${nandrollLigado() ? 'checked' : ''}> Ativar animes</label>
-          <label><input type="checkbox" id="cfg-nandroll-assistir" ${estado.config.nandrollAssistir !== 'stremio' ? 'checked' : ''}> O botão Assistir abre a plataforma oficial do anime (em vez do Stremio)</label>
-          <label><input type="checkbox" id="cfg-nandroll-plataformas" ${todasPlataformas() ? 'checked' : ''}> Mostrar plataformas de fora do Brasil</label>
+          <label><input type="checkbox" id="cfg-nandroll" ${ligado ? 'checked' : ''}> Ativar animes</label>
         </div>
         <p>Busca de animes na AniList (sem chave), episódios e status das séries, próximo episódio e onde assistir. Desligado, o app fica como o NANDFlix original; os animes já adicionados continuam na lista.</p>
-        <div class="busca-linha nandroll-importar">
-          <input id="cfg-anilist-usuario" placeholder="Seu usuário da AniList" spellcheck="false" autocomplete="off" aria-label="Usuário da AniList">
-          <button class="btn" id="cfg-anilist-importar">${icone('Download')} Importar lista</button>
+        <div class="nandroll-grupos"${ligado ? '' : ' hidden'}>
+            <div class="opcoes-radio nandroll-opcoes">
+              <label><input type="checkbox" id="cfg-nandroll-assistir" ${estado.config.nandrollAssistir !== 'stremio' ? 'checked' : ''}> O botão Assistir abre a plataforma oficial do anime (em vez do Stremio)</label>
+              <label><input type="checkbox" id="cfg-nandroll-plataformas" ${todasPlataformas() ? 'checked' : ''}> Mostrar plataformas de fora do Brasil</label>
+            </div>
+            <div class="busca-linha nandroll-importar">
+              <input id="cfg-anilist-usuario" placeholder="Seu usuário da AniList" spellcheck="false" autocomplete="off" aria-label="Usuário da AniList">
+              <button class="btn" id="cfg-anilist-importar">${icone('Download')} Importar lista</button>
+            </div>
+            <p>Traz os animes da sua lista pública da AniList, com episódios vistos, status e notas. O que já está aqui não é duplicado.</p>
+            ${api.plataforma === 'android' ? '' : `
+            <div class="plataformas-importar">
+              ${PLATAFORMAS_IMPORTAR.map((pl) => `<span class="plataforma-linha"><button class="btn" data-plat="${pl.id}">${icone('Download')} Importar da ${esc(pl.nome)}</button><button class="link-chave" data-plat-sair="${pl.id}" title="Apagar a sessão da ${esc(pl.nome)} guardada no app">desconectar</button></span>`).join('')}
+            </div>
+            <p>Abre o site numa janela do app: você entra com a sua conta (o app não vê a senha), e depois escolhe quais animes trazer e em que lista eles entram. A sessão fica guardada para a próxima vez.</p>`}
         </div>
-        <p>Traz os animes da sua lista pública da AniList, com episódios vistos, status e notas. O que já está aqui não é duplicado.</p>
-      </div>`;
+      </details>`;
 }
 
 function ligarNandrollConfig(raiz) {
@@ -81,6 +93,13 @@ function ligarNandrollConfig(raiz) {
     importar.onclick = ir;
     usuario.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ir(); } });
   }
+  for (const b of $$('[data-plat]', raiz)) b.onclick = () => { fecharModal(); importarDePlataforma(b.dataset.plat); };
+  for (const b of $$('[data-plat-sair]', raiz)) {
+    b.onclick = async () => {
+      await api.desconectarPlataforma(b.dataset.platSair);
+      aviso('Sessão apagada. Na próxima importação, o site pede login de novo.', { tipo: 'ok' });
+    };
+  }
   const fora = $('#cfg-nandroll-plataformas', raiz);
   if (fora) fora.onchange = async () => {
     estado.config = await api.salvarConfig({ nandrollTodasPlataformas: fora.checked });
@@ -90,6 +109,10 @@ function ligarNandrollConfig(raiz) {
   if (!caixa) return;
   caixa.onchange = async () => {
     estado.config = await api.salvarConfig({ nandroll: caixa.checked });
+    const grupos = $('.nandroll-grupos', raiz);
+    if (grupos) grupos.hidden = !caixa.checked;
+    const rotulo = $('.nandroll-estado', raiz);
+    if (rotulo) rotulo.textContent = caixa.checked ? 'ligado' : 'desligado';
     aplicarNandroll();
     render();
     if (typeof renderCelular === 'function') renderCelular();
@@ -749,4 +772,131 @@ async function abrirTrocarCapaSerie(id) {
     if (filmeNoDestaque() === id) mostrarDestaque({ rapido: true });
     aviso('Capa trocada.', { tipo: 'ok' });
   });
+}
+
+// ---- Importar de plataformas de streaming (só no PC) ----
+//
+// Configurações → NANDRoll → "Importar da Crunchyroll". O main.js abre o site,
+// espera a pessoa entrar e lê as listas; aqui fica a conferência: o que foi
+// achado na AniList, o que não foi (com busca à mão) e em que lista do app entra.
+
+const PLATAFORMAS_IMPORTAR = [
+  { id: 'crunchyroll', nome: 'Crunchyroll' },
+];
+
+async function importarDePlataforma(id) {
+  const pl = PLATAFORMAS_IMPORTAR.find((x) => x.id === id);
+  if (!pl) return;
+  const avisoEspera = aviso(`Entre na sua conta na janela da ${pl.nome}. Depois disso, o app lê as suas listas sozinho.`, { duracao: 15000 });
+  const r = await api.lerPlataforma(id);
+  if (avisoEspera && avisoEspera.remove) avisoEspera.remove();
+  if (!r.ok) {
+    if (r.erro && r.erro.tipo === 'cancelado') return;
+    aviso((r.erro && r.erro.mensagem) || `Não deu para ler as listas da ${pl.nome}.`, { tipo: 'erro' });
+    return;
+  }
+  if (!r.dados.listas.length) { aviso(`Não achei nada nas suas listas da ${pl.nome}.`); return; }
+  abrirConferencia(r.dados);
+}
+
+// Um item já está no app? (pelo id da AniList, de qualquer temporada)
+function jaNoApp(anilistId) {
+  const id = String(anilistId);
+  return estado.filmes.find((f) => String(f.anilistId) === id || temporadasDe(f).some((t) => String(t.anilistId) === id)) || null;
+}
+
+function abrirConferencia(dados) {
+  // As escolhas: uma por item de cada lista da plataforma.
+  const linhas = [];
+  dados.listas.forEach((l, li) => l.itens.forEach((it, ii) => linhas.push({ chave: `${li}-${ii}`, lista: li, ...it, marcado: Boolean(it.anime) && !jaNoApp(it.anime.anilistId) })));
+  const listasApp = todasListas();
+  const linhaHTML = (x) => {
+    const a = x.anime;
+    const ja = a && jaNoApp(a.anilistId);
+    const outroNome = a && a.titulo.toLowerCase() !== String(x.titulo).toLowerCase();
+    return `<li class="conf-item${a ? '' : ' nao-achado'}" data-chave="${x.chave}">
+      <label class="conf-marcar"><input type="checkbox" data-conf-marcar="${x.chave}"${x.marcado ? ' checked' : ''}${a ? '' : ' disabled'} aria-label="Importar ${esc(x.titulo)}"></label>
+      <span class="conf-capa">${a && a.poster ? `<img src="${esc(a.poster)}" alt="" loading="lazy">` : ''}</span>
+      <span class="conf-texto">
+        <b>${esc(a ? a.titulo : x.titulo)}${x.favorito ? ` <span class="conf-fav" title="Favorito na plataforma">${icone('Star', { preenchido: true })}</span>` : ''}</b>
+        <small>${a ? [a.ano, a.detalhe, outroNome ? `na ${esc(dados.plataforma)}: ${esc(x.titulo)}` : '', ja ? 'já está no app' : ''].filter(Boolean).join(' · ') : 'Não achei na AniList'}</small>
+        ${a ? '' : `<span class="busca-linha conf-busca"><input data-conf-termo="${x.chave}" value="${esc(x.titulo)}" spellcheck="false" aria-label="Nome para procurar"><button class="btn" data-conf-procurar="${x.chave}">Procurar</button></span>`}
+      </span>
+    </li>`;
+  };
+  const corpo = () => dados.listas.map((l, li) => {
+    const daLista = linhas.filter((x) => x.lista === li);
+    return `<section class="conf-lista">
+      <h3><label><input type="checkbox" data-conf-todos="${li}"${daLista.every((x) => x.marcado || !x.anime) && daLista.some((x) => x.anime) ? ' checked' : ''}> ${esc(l.nome)}</label><span>${daLista.length}</span></h3>
+      <ul>${daLista.map(linhaHTML).join('')}</ul>
+    </section>`;
+  }).join('');
+  abrirModal(`${cabecalhoModal(`Importar da ${dados.plataforma}`)}
+    <div class="modal-corpo conferencia">
+      <p class="conf-intro">Confira os animes achados. Os que já estão no app só ganham a lista escolhida.</p>
+      <div id="conf-listas">${corpo()}</div>
+    </div>
+    <div class="modal-rodape conf-rodape">
+      <div class="conf-destino" role="radiogroup" aria-label="Em que lista entram">
+        <label><input type="radio" name="conf-destino" value="nova" checked> Nova lista <input id="conf-nome" value="${esc(dados.plataforma)}" spellcheck="false" aria-label="Nome da nova lista"></label>
+        ${listasApp.length ? `<label><input type="radio" name="conf-destino" value="existente"> Lista existente <select id="conf-existente" aria-label="Lista existente">${listasApp.map((n) => `<option>${esc(n)}</option>`).join('')}</select></label>` : ''}
+      </div>
+      <button class="btn btn-laranja" id="conf-importar"></button>
+    </div>`);
+  const area = $('#conf-listas', modal);
+  const botao = $('#conf-importar', modal);
+  const contar = () => {
+    const ids = new Set(linhas.filter((x) => x.marcado && x.anime).map((x) => x.anime.anilistId));
+    botao.textContent = ids.size ? `Importar ${ids.size} anime${ids.size > 1 ? 's' : ''}` : 'Nada marcado';
+    botao.disabled = !ids.size;
+  };
+  const refazer = () => { area.innerHTML = corpo(); contar(); };
+  contar();
+  area.addEventListener('change', (e) => {
+    const m = e.target.closest('[data-conf-marcar]');
+    if (m) { const x = linhas.find((y) => y.chave === m.dataset.confMarcar); x.marcado = m.checked; refazer(); return; }
+    const t = e.target.closest('[data-conf-todos]');
+    if (t) { for (const x of linhas) if (x.lista === Number(t.dataset.confTodos) && x.anime) x.marcado = t.checked; refazer(); }
+  });
+  const procurar = async (chave) => {
+    const x = linhas.find((y) => y.chave === chave);
+    const campo = $(`[data-conf-termo="${chave}"]`, area);
+    const termo = campo ? campo.value.trim() : '';
+    if (!x || !termo) return;
+    const b = $(`[data-conf-procurar="${chave}"]`, area);
+    if (b) b.classList.add('carregando');
+    const r = await api.procurarAnime(termo);
+    const achado = r.ok && r.dados.length ? (r.dados.find((a) => Boolean(a.filme) === Boolean(x.filme)) || r.dados[0]) : null;
+    if (!achado) { if (b) b.classList.remove('carregando'); aviso(`Nada encontrado para “${termo}”.`); return; }
+    // O mesmo título em outras listas também fica resolvido.
+    for (const y of linhas) if (y.titulo === x.titulo && !y.anime) Object.assign(y, { anime: achado, marcado: !jaNoApp(achado.anilistId) });
+    refazer();
+  };
+  area.addEventListener('click', (e) => { const b = e.target.closest('[data-conf-procurar]'); if (b) procurar(b.dataset.confProcurar); });
+  area.addEventListener('keydown', (e) => { const c = e.target.closest('[data-conf-termo]'); if (c && e.key === 'Enter') { e.preventDefault(); procurar(c.dataset.confTermo); } });
+  $('#conf-nome', modal).addEventListener('focus', () => { $('input[name="conf-destino"][value="nova"]', modal).checked = true; });
+  $('#conf-existente', modal)?.addEventListener('change', () => { $('input[name="conf-destino"][value="existente"]', modal).checked = true; });
+  botao.onclick = async () => {
+    const destino = $('input[name="conf-destino"]:checked', modal).value;
+    const nome = destino === 'nova' ? $('#conf-nome', modal).value.trim() : $('#conf-existente', modal).value;
+    if (!nome) { aviso('Dê um nome para a lista.', { tipo: 'erro' }); $('#conf-nome', modal).focus(); return; }
+    // Um anime em várias listas da plataforma entra uma vez (favorito se for em alguma).
+    const porId = new Map();
+    for (const x of linhas) {
+      if (!x.marcado || !x.anime) continue;
+      const a = x.anime;
+      const antes = porId.get(a.anilistId);
+      porId.set(a.anilistId, { anilistId: a.anilistId, titulo: a.titulo, ano: a.ano, poster: a.poster, filme: Boolean(a.filme), favorito: Boolean(x.favorito || (antes && antes.favorito)) });
+    }
+    botao.disabled = true;
+    botao.classList.add('carregando');
+    const r = await api.importarDaPlataforma([...porId.values()], nome);
+    fecharModal();
+    if (!r || !r.lista) { aviso('Não deu para importar.', { tipo: 'erro' }); return; }
+    estado.filmes = r.lista;
+    estado.config = r.config;
+    render();
+    const partes = [r.novos ? `${r.novos} novo${r.novos > 1 ? 's' : ''}` : '', r.jaEstavam ? `${r.jaEstavam} já estava${r.jaEstavam > 1 ? 'm' : ''} no app` : ''].filter(Boolean).join(', ');
+    aviso(`Lista “${nome}”: ${partes}. Temporadas e capas chegam aos poucos.`, { tipo: 'ok', duracao: 7000 });
+  };
 }

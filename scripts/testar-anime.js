@@ -409,3 +409,29 @@ test('importar: o filme ligado à série entra na série, na ordem', () => {
   assert.strictEqual(filmes.length, 0);
   assert.deepStrictEqual(series[0].temporadas.map((t) => [t.anilistId, t.vistos]), [[1, 12], [50, 1]]);
 });
+
+// ---- Importar da Crunchyroll (leitura das respostas do site) ----
+const cr = require('../lib/plataformas/crunchyroll');
+
+test('crunchyroll: a watchlist (próximo episódio de cada série) vira as séries, com favoritos', () => {
+  const resposta = { total: 3, data: [
+    { panel: { id: 'E1', type: 'episode', title: 'Ep 5', episode_metadata: { series_id: 'GRDV0019R', series_title: 'Jujutsu Kaisen' } }, is_favorite: true, fully_watched: false },
+    { panel: { id: 'G4PH0WXVJ', type: 'series', title: 'SPY x FAMILY' }, is_favorite: false },
+    { panel: { id: 'E2', type: 'episode', title: 'Ep 6', episode_metadata: { series_id: 'GRDV0019R', series_title: 'Jujutsu Kaisen' } } },
+    { panel: { id: 'M1', type: 'movie', title: 'Suzume', movie_metadata: { movie_listing_id: 'GY8VEQ95Y', movie_listing_title: 'Suzume' } } },
+  ] };
+  assert.deepStrictEqual(cr.titulos(resposta), [
+    { id: 'GRDV0019R', titulo: 'Jujutsu Kaisen', filme: false, favorito: true },
+    { id: 'G4PH0WXVJ', titulo: 'SPY x FAMILY', filme: false, favorito: false },
+    { id: 'GY8VEQ95Y', titulo: 'Suzume', filme: true, favorito: false },
+  ]);
+});
+test('crunchyroll: Crunchylists e os itens delas, mesmo com o formato mudado', () => {
+  assert.deepStrictEqual(cr.crunchylists({ data: [{ list_id: 'abc', title: 'Ver com a namorada', total: 2 }, { list_id: '', title: 'x' }] }), [{ id: 'abc', nome: 'Ver com a namorada' }]);
+  // os itens podem vir em data[].panel ou mais fundo: a leitura procura em qualquer lugar
+  const itens = { data: [{ list_id: 'abc', id: 'x1', panel: { id: 'S1', type: 'series', title: 'Frieren' } }], meta: { outra: { coisa: [{ type: 'movie_listing', id: 'F1', title: 'Your Name.' }] } } };
+  assert.deepStrictEqual(cr.titulos(itens).map((x) => [x.titulo, x.filme]), [['Frieren', false], ['Your Name.', true]]);
+  assert.deepStrictEqual(cr.titulos(null), []);
+  assert.strictEqual(cr.idDaConta({ account_id: 'u-1' }), 'u-1');
+  assert.ok(cr.consultas.watchlist('u 1').includes('/discover/u%201/watchlist') && cr.consultas.watchlist('x').includes('locale=en-US'));
+});

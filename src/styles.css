@@ -2867,3 +2867,46 @@ button.serie-conta:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--an
 .chip-temporada .ico { margin-right: 2px; }
 span.serie-conta { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; color: var(--texto); }
 span.serie-conta .ico { width: 16px; height: 16px; }
+
+/* NANDRoll — importar de plataformas */
+.plataformas-importar { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; }
+.plataforma-linha { display: inline-flex; align-items: center; gap: 10px; }
+.conferencia { display: flex; flex-direction: column; gap: 16px; }
+.conf-intro { margin: 0; color: var(--texto-2); font-size: 14px; }
+.conf-lista h3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.conf-lista h3 label { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.conf-lista h3 span { color: var(--texto-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+.conf-lista ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.conf-item { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 10px; }
+.conf-item:hover { background: var(--superficie-2); }
+.conf-marcar { display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 44px; cursor: pointer; }
+.conf-marcar input, .conf-lista h3 input { width: 18px; height: 18px; accent-color: var(--acento); }
+.conf-capa { width: 36px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; background: var(--superficie-2); flex: none; }
+.conf-capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.conf-texto { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.conf-texto b { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.conf-texto small { font-size: 13px; color: var(--texto-2); }
+.conf-fav .ico { width: 14px; height: 14px; color: var(--acento-texto); }
+.nao-achado .conf-texto small { color: var(--acento-texto); }
+.conf-busca { margin-top: 4px; }
+.conf-busca input { min-height: 40px; }
+.conf-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.conf-destino { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.conf-destino label { display: flex; align-items: center; gap: 8px; }
+.conf-destino input[type="radio"] { accent-color: var(--acento); }
+.conf-destino input:not([type]), .conf-destino #conf-nome, .conf-destino select { min-height: 36px; padding: 0 12px; border-radius: 8px; background: var(--superficie-2); border: 1px solid var(--divisor); color: var(--texto); font: inherit; }
+
+/* NANDRoll — configurações agrupadas */
+.nandroll-secao > summary { display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; min-height: 44px; }
+.nandroll-secao > summary::-webkit-details-marker, .nandroll-grupo > summary::-webkit-details-marker { display: none; }
+.nandroll-secao > summary h3 { margin: 0; }
+.nandroll-secao > summary::after, .nandroll-grupo > summary::after { content: ''; width: 8px; height: 8px; margin-left: auto; border-right: 2px solid var(--texto-2); border-bottom: 2px solid var(--texto-2); transform: rotate(45deg); transition: transform .2s var(--saida); }
+.nandroll-secao[open] > summary::after, .nandroll-grupo[open] > summary::after { transform: rotate(-135deg); }
+.nandroll-secao > summary:focus-visible, .nandroll-grupo > summary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--anel-foco); border-radius: 8px; }
+.nandroll-estado { font-size: 12px; font-weight: 600; color: var(--texto-2); padding: 3px 8px; border-radius: 999px; background: var(--superficie-2); }
+.nandroll-secao[open] > summary { margin-bottom: 8px; }
+.nandroll-grupos { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.nandroll-grupo { border-top: 1px solid var(--divisor); }
+.nandroll-grupo > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 600; }
+.nandroll-grupo[open] > summary { margin-bottom: 4px; }
+.nandroll-grupo > *:last-child { margin-bottom: 12px; }

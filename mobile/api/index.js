@@ -518,6 +518,11 @@ window.api = {
     if (!ehSerie(f)) return null;
     return atualizarFilme(id, comDia(f, alternarEpisodio(f, Number(temporada), n), dia));
   },
+  // Importar de plataformas abre o site numa janela: só no PC.
+  lerPlataforma: soNoPc,
+  desconectarPlataforma: soNoPc,
+  importarDaPlataforma: soNoPc,
+  procurarAnime: (termo) => chamar(() => anilist.pesquisar(termo)),
   importarAnilist: (nome) => chamar(() => importarAnilist(nome)),
   statusSerie: async (id, status, dia) => {
     const f = filmes.find((x) => x.id === id);

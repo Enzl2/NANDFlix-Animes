@@ -308,6 +308,176 @@ async function capasDaSerie(f) {
   return [...doTmdb, ...dasTemporadas];
 }
 
+// ---------- NANDRoll: importar listas de plataformas de streaming ----------
+//
+// Opcional e só pelas Configurações. Cada plataforma abre o site numa janela
+// própria, com uma sessão só dela (fica guardada: na próxima vez não pede login
+// de novo). A pessoa entra com a conta dela; o app nunca vê a senha. Com a
+// sessão aberta, o app faz as mesmas consultas que o site faz e lê as listas.
+const crunchyroll = require('./lib/plataformas/crunchyroll');
+const PLATAFORMAS = { crunchyroll };
+const sessaoPlataforma = (p) => session.fromPartition(`persist:plataforma-${p.ID}`);
+let janelaPlataforma = null;
+
+// Abre o site, espera a pessoa entrar e devolve as listas: [{ nome, origem, itens: [{ titulo, filme, favorito }] }].
+async function lerPlataforma(id) {
+  const p = PLATAFORMAS[id];
+  if (!p) throw new Error('Plataforma desconhecida.');
+  if (janelaPlataforma && !janelaPlataforma.isDestroyed()) { janelaPlataforma.focus(); throw Object.assign(new Error('A janela da plataforma já está aberta.'), { tipo: 'aberta' }); }
+  const ses = sessaoPlataforma(p);
+  // O navegador comum: alguns sites recusam o login vindo de um app (Electron).
+  ses.setUserAgent(ses.getUserAgent().replace(/\s*(Electron|nandflix)\/\S+/gi, ''));
+  const jan = new BrowserWindow({
+    width: 1040, height: 780, title: `Entrar na ${p.NOME}`, autoHideMenuBar: true, backgroundColor: '#000000',
+    webPreferences: { session: ses, contextIsolation: true, sandbox: true, nodeIntegration: false },
+  });
+  jan.setMenu(null);
+  janelaPlataforma = jan;
+  // Links que abririam outra janela (ajuda, termos) vão para o navegador.
+  jan.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+
+  // A sessão do site: o cabeçalho de autorização que a própria página manda
+  // nos pedidos dela (lido de passagem, sem mudar nada no pedido).
+  let token = '';
+  ses.webRequest.onBeforeSendHeaders({ urls: [`${p.SITE}/*`] }, (d, cb) => {
+    const h = d.requestHeaders || {};
+    const a = h.Authorization || h.authorization;
+    if (a && /^Bearer\s/i.test(a)) token = a;
+    cb({ requestHeaders: h });
+  });
+
+  let fechada = false;
+  const fechou = new Promise((_ok, falhou) => jan.on('closed', () => {
+    fechada = true;
+    falhou(Object.assign(new Error('Janela fechada antes de terminar.'), { tipo: 'cancelado' }));
+  }));
+  fechou.catch(() => {});
+
+  // Uma consulta feita de dentro da página, com a sessão dela.
+  const pedir = async (url) => {
+    if (fechada || jan.isDestroyed()) return null;
+    try {
+      return await jan.webContents.executeJavaScript(
+        `fetch(${JSON.stringify(url)}, { headers: { Authorization: ${JSON.stringify(token)} }, credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)`,
+        true,
+      );
+    } catch { return null; }
+  };
+
+  jan.loadURL(`${p.SITE}/watchlist`).catch(() => { /* a página pode redirecionar para o login: tudo bem */ });
+
+  const ler = async () => {
+    // Espera a pessoa entrar (até 10 minutos): a conta só responde com login.
+    let conta = '';
+    for (let i = 0; i < 300 && !conta; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      if (fechada) return null;
+      if (!token) continue;
+      conta = p.idDaConta(await pedir(p.consultas.conta()));
+    }
+    if (!conta) throw Object.assign(new Error('Não deu para entrar na conta a tempo.'), { tipo: 'tempo' });
+    jan.setTitle(`${p.NOME}: lendo as suas listas…`);
+    const listas = [];
+    const watch = p.titulos(await pedir(p.consultas.watchlist(conta)));
+    if (watch.length) listas.push({ nome: 'Watchlist', origem: 'watchlist', itens: watch });
+    for (const l of p.crunchylists(await pedir(p.consultas.crunchylists(conta)))) {
+      const itens = p.titulos(await pedir(p.consultas.crunchylist(conta, l.id)));
+      if (itens.length) listas.push({ nome: l.nome, origem: 'crunchylist', itens });
+    }
+    return listas;
+  };
+  try {
+    const listas = await Promise.race([ler(), fechou]);
+    return { plataforma: p.NOME, listas: listas || [] };
+  } finally {
+    janelaPlataforma = null;
+    ses.webRequest.onBeforeSendHeaders(null);
+    if (!fechada && !jan.isDestroyed()) jan.close();
+  }
+}
+
+// Procura cada título na AniList. Prefere o resultado do mesmo tipo (série ou
+// filme) cujo nome bate; senão, o primeiro. Os não achados voltam sem `anime`.
+async function acharNaAnilist(itens) {
+  const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const cache = new Map();
+  const saida = [];
+  for (const it of itens) {
+    const chave = `${it.filme ? 'f' : 's'}|${norm(it.titulo)}`;
+    if (!cache.has(chave)) {
+      let r = [];
+      try { r = await anilist.pesquisar(it.titulo); } catch { r = []; }
+      const mesmoTipo = r.filter((x) => Boolean(x.filme) === Boolean(it.filme));
+      const alvo = norm(it.titulo);
+      cache.set(chave, mesmoTipo.find((x) => norm(x.titulo) === alvo) || r.find((x) => norm(x.titulo) === alvo) || mesmoTipo[0] || r[0] || null);
+    }
+    saida.push({ ...it, anime: cache.get(chave) });
+  }
+  return saida;
+}
+
+ipcMain.handle('plataforma:ler', (_e, id) => chamar(async () => {
+  const r = await lerPlataforma(id);
+  // Um título que está em várias listas é procurado uma vez só.
+  const unicos = [...new Map(r.listas.flatMap((l) => l.itens).map((x) => [`${x.filme}|${x.titulo}`, x])).values()];
+  const achados = new Map((await acharNaAnilist(unicos)).map((x) => [`${x.filme}|${x.titulo}`, x.anime]));
+  return { ...r, listas: r.listas.map((l) => ({ ...l, itens: l.itens.map((x) => ({ ...x, anime: achados.get(`${x.filme}|${x.titulo}`) || null })) })) };
+}));
+ipcMain.handle('plataforma:desconectar', async (_e, id) => {
+  const p = PLATAFORMAS[id];
+  if (!p) return false;
+  await sessaoPlataforma(p).clearStorageData();
+  return true;
+});
+ipcMain.handle('plataforma:procurar', (_e, termo) => chamar(() => anilist.pesquisar(termo)));
+
+// Põe na lista do app os animes escolhidos na conferência. Os que já estão no
+// app não se repetem: só ganham a lista (e o favorito). `itens`: [{ anilistId,
+// titulo, ano, poster, filme, favorito }]; `lista`: o nome da lista do app.
+function importarDaPlataforma(itens, lista) {
+  const nome = String(lista || '').trim().slice(0, 60);
+  let ordem = filmes.reduce((m, f) => Math.max(m, f.ordem || 0), 0);
+  const agora = new Date().toISOString();
+  const r = { novos: 0, jaEstavam: 0 };
+  const novos = [];
+  for (const d of itens || []) {
+    const anilistId = Number(d.anilistId);
+    if (!anilistId) continue;
+    const serie = !d.filme;
+    const dados = { titulo: String(d.titulo || '').trim(), ano: String(d.ano || '').trim(), anilistId, tipo: serie ? 'serie' : undefined };
+    const ja = acharRepetido(filmes, dados);
+    if (ja) {
+      const mudancas = {};
+      if (nome && !(ja.listas || []).includes(nome)) mudancas.listas = [...(ja.listas || []), nome];
+      if (d.favorito && !ja.favorito) mudancas.favorito = true;
+      if (Object.keys(mudancas).length) atualizarFilme(ja.id, mudancas);
+      r.jaEstavam++;
+      continue;
+    }
+    const f = novoFilme({
+      ordem: ++ordem, titulo: dados.titulo, ano: dados.ano, poster: d.poster || '', anime: true, anilistId,
+      listas: nome ? [nome] : [], favorito: Boolean(d.favorito),
+      ...(serie ? { tipo: 'serie', episodios: 0, episodiosVistos: 0, status: 'planejo', tmdbEm: agora } : {}),
+    });
+    filmes.push(f);
+    novos.push(f);
+    r.novos++;
+  }
+  if (nome && !(config.listas || []).includes(nome)) { config.listas = [...(config.listas || []), nome]; gravarConfig(); }
+  gravarAgora();
+  // Temporadas, capas e o resto chegam aos poucos (a AniList tem limite por minuto).
+  (async () => {
+    for (const f of novos) {
+      try { await processarAnilist(f, null, { novo: true }); } catch { /* fica para a próxima vez que o app abrir */ }
+      avisar('filme:mudou', f);
+    }
+    gravarAgora();
+    buscarCapasQueFaltam();
+  })();
+  return { ...r, lista: filmes, config: configPublica() };
+}
+ipcMain.handle('plataforma:importar', (_e, itens, lista) => importarDaPlataforma(itens, lista));
+
 // Importa a lista de animes de um usuário da AniList (pública). O que já está
 // na lista não entra de novo. As séries chegam com o progresso e a nota; as
 // temporadas, a capa e o resto são completados em seguida, em segundo plano.
