@@ -221,7 +221,10 @@ function filtrados() {
     if (estado.premio && !passaPremio(f, estado.premio)) return false;
     if (!palavras.length) return true;
     const alvo = normalizar([f.titulo, f.ano, f.diretor, f.notas, f.buscaCapa, ...paisesDe(f), ...extraBuscaJogo(f)].join(' '));
-    return palavras.every((p) => alvo.includes(p));
+    // Sem espaços nem pontuação, uma palavra grudada também acha:
+    // "dragonball" acha "Dragon Ball", "spiderman" acha "Spider-Man".
+    const grudado = alvo.replace(/[^\p{L}\p{N}]+/gu, '');
+    return palavras.every((p) => alvo.includes(p) || grudado.includes(p.replace(/[^\p{L}\p{N}]+/gu, '')));
   });
 
   const comparaTitulo = (a, b) => a.titulo.localeCompare(b.titulo, 'pt', { sensitivity: 'base', numeric: true });
