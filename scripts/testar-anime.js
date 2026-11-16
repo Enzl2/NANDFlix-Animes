@@ -464,3 +464,56 @@ test('episódios: usa o cache em disco sem internet', async () => {
   assert.ok(r.ok);
   assert.deepStrictEqual(r.episodios.map((x) => [x.n, x.titulo]), [[1, 'A'], [2, 'B']]);
 });
+
+// ---- Busca: palavras grudadas ("dragonball") ----
+
+test('busca: quando não acha nada, separa a palavra grudada e tenta de novo', async () => {
+  const pedidos = [];
+  global.fetch = async (_u, o) => {
+    const termo = JSON.parse(o.body).variables.termo;
+    pedidos.push(termo);
+    const achou = termo === 'dragon ball super beerus';
+    return { status: 200, ok: true, headers: { get: () => null }, json: async () => ({ data: { Page: { media: achou ? [{ ...MIDIA, id: 206814, title: { english: 'Dragon Ball Super: Beerus' } }] : [] } } }) };
+  };
+  const r = await anilist.pesquisar('dragonball super beerus');
+  assert.deepStrictEqual(r.map((x) => x.anilistId), [206814]);
+  assert.strictEqual(pedidos[0], 'dragonball super beerus');
+  assert.strictEqual(pedidos[pedidos.length - 1], 'dragon ball super beerus');
+});
+test('busca: as variações não se repetem e têm limite', () => {
+  assert.ok(anilist.variacoesDaBusca('onepiece').includes('one piece'));
+  assert.ok(anilist.variacoesDaBusca('dragonball super beerus').includes('super beerus'), 'tirar uma palavra');
+  assert.deepStrictEqual(anilist.variacoesDaBusca('naruto'), ['nar uto'], 'palavra curta: só uma divisão');
+  assert.ok(anilist.variacoesDaBusca('abcdefghijklmnop qrstuvwxyzabcdef').length <= 10);
+  assert.deepStrictEqual(anilist.variacoesDaBusca('   '), []);
+});
+test('busca: quando a busca original acha, não faz tentativas extras', async () => {
+  const pedidos = [];
+  global.fetch = async (_u, o) => { pedidos.push(1); return { status: 200, ok: true, headers: { get: () => null }, json: async () => ({ data: { Page: { media: [MIDIA] } } }) }; };
+  await anilist.pesquisar('chainsaw man');
+  assert.strictEqual(pedidos.length, 1);
+});
+
+// Dragon Ball: Z continua em GT, Super e Beerus; Beerus vem do Z e do Kai.
+const LIGA = (tipo, id, format = 'TV') => ({ relationType: tipo, node: { id, type: 'ANIME', format } });
+const FRANQUIA = {
+  1: { relations: { edges: [LIGA('SEQUEL', 2), LIGA('SEQUEL', 6)] } }, // Dragon Ball → Z e Kai
+  2: { relations: { edges: [LIGA('PREQUEL', 1), LIGA('SEQUEL', 3), LIGA('SEQUEL', 4), LIGA('SEQUEL', 5)] } }, // Z
+  3: { relations: { edges: [LIGA('PREQUEL', 2)] } }, // GT
+  4: { relations: { edges: [LIGA('PREQUEL', 2), LIGA('PREQUEL', 6)] } }, // Super
+  5: { relations: { edges: [LIGA('PREQUEL', 2), LIGA('PREQUEL', 6)] } }, // Beerus
+  6: { relations: { edges: [LIGA('PREQUEL', 1), LIGA('SEQUEL', 4), LIGA('SEQUEL', 5)] } }, // Kai
+};
+test('franquia que se ramifica: cada série fica separada (Beerus não vira temporada do Dragon Ball)', async () => {
+  global.fetch = async (_u, o) => {
+    const id = JSON.parse(o.body).variables.id;
+    return { status: 200, ok: true, headers: { get: () => null }, json: async () => ({ data: { Media: FRANQUIA[id] ? { ...MIDIA, id, status: 'FINISHED', nextAiringEpisode: null, ...FRANQUIA[id] } : null } }) };
+  };
+  assert.deepStrictEqual((await anilist.temporadas(5)).map((t) => t.anilistId), [5]);
+  assert.deepStrictEqual((await anilist.temporadas(2)).map((t) => t.anilistId), [2]);
+  assert.deepStrictEqual((await anilist.temporadas(1)).map((t) => t.anilistId), [1]);
+});
+test('importar: numa franquia que se ramifica, cada série vira um item com o seu progresso', () => {
+  const { series } = anilist.agruparLista([1, 2, 4, 5].map((id) => entrada(id, { status: 'completo', vistos: 12 }, FRANQUIA[id])));
+  assert.deepStrictEqual(series.map((s) => s.temporadas.map((t) => t.anilistId)).sort(), [[1], [2], [4], [5]]);
+});
