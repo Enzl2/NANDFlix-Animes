@@ -3602,3 +3602,41 @@ html[data-com-verde] .cfg-plat-hub { background: linear-gradient(90deg, rgba(109
 
 /* Prêmios de jogos: a capa deitada (cabeçalho da Steam) cabe inteira enquanto a da IGDB não chega */
 .pr-capa img.pr-capa-deitada { object-fit: contain; background: #0E1114; }
+
+/* nandchan: importar da Crunchyroll (Configurações) e a conferência do que veio */
+.streaming-importar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.streaming-linha { display: inline-flex; align-items: center; gap: 10px; }
+.conferencia { display: flex; flex-direction: column; gap: 16px; }
+.conf-intro { margin: 0; color: var(--texto-2); font-size: 14px; }
+.conf-lista h3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.conf-lista h3 label { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.conf-lista h3 span { color: var(--texto-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+.conf-lista ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.conf-item { display: flex; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 10px; }
+.conf-item:hover { background: var(--superficie-2); }
+.conf-marcar { display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 44px; cursor: pointer; }
+.conf-marcar input, .conf-lista h3 input { width: 18px; height: 18px; accent-color: var(--acento); }
+.conf-capa { width: 36px; aspect-ratio: 2 / 3; border-radius: 4px; overflow: hidden; background: var(--superficie-2); flex: none; }
+.conf-capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.conf-texto { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.conf-texto b { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.conf-texto small { font-size: 13px; color: var(--texto-2); }
+.conf-fav .ico { width: 14px; height: 14px; color: var(--acento-texto); }
+.nao-achado .conf-texto small { color: var(--acento-texto); }
+.conf-busca { display: flex; width: 100%; min-width: 0; margin-top: 4px; }
+.conf-busca input { min-height: 40px; min-width: 0; flex: 1; width: auto; }
+.conf-rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.conf-destino { display: flex; flex-direction: column; gap: 8px; font-size: 14px; flex: 1 1 260px; min-width: 0; }
+.conf-destino label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.conf-destino #conf-nome { min-width: 0; flex: 1; max-width: 260px; }
+.conf-destino input[type="radio"] { accent-color: var(--acento); }
+.conf-destino input:not([type]), .conf-destino #conf-nome, .conf-destino select { min-height: 36px; padding: 0 12px; border-radius: 8px; background: var(--superficie-2); border: 1px solid var(--divisor); color: var(--texto); font: inherit; }
+.streaming-titulo { margin: 0; font-size: 14px; font-weight: 600; color: var(--texto); }
+.streaming-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 16px; width: 100%; }
+.streaming-opcoes label { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px; cursor: pointer; }
+.streaming-opcoes input { width: 18px; height: 18px; accent-color: var(--acento); }
+.conf-vazia { margin: 0 0 4px; font-size: 13px; color: var(--texto-2); }
+.conf-fora { margin-top: 6px; }
+.conf-fora summary { cursor: pointer; padding: 8px; border-radius: 8px; font-size: 13px; color: var(--texto-2); }
+.conf-fora summary:hover { background: var(--superficie-2); }
+.conf-nao-animes { margin: 4px 8px 0; font-size: 13px; line-height: 1.5; color: var(--texto-2); }

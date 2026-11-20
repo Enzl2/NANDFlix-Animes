@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld('api', {
   definirSerie: chamar('serie:definir'),
   episodioSerie: chamar('serie:episodio'),
   importarAnilist: chamar('anilist:importar'),
+  // nandchan: importar da Crunchyroll (só no PC)
+  lerStreaming: chamar('streaming:ler'),
+  desconectarStreaming: chamar('streaming:desconectar'),
+  procurarAnime: chamar('streaming:procurar'),
+  importarDoStreaming: chamar('streaming:importar'),
+  aoProgressoStreaming: ouvir('streaming:progresso'),
   abrirPlataforma: chamar('abrir:plataforma'),
   abrirAnilist: chamar('abrir:anilist'),
   pesquisarTmdb: chamar('tmdb:pesquisar'),

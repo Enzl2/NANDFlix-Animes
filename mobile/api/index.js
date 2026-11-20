@@ -589,7 +589,7 @@ window.api = {
     return { filmes, config: configPublica(), pastaDados: '', versao: VERSAO };
   },
   salvarConfig: async (mudancas) => {
-    const permitidas = ['tmdbKey', 'omdbKey', 'stremio', 'visualizacao', 'ordenacao', 'watchlists', 'watchlistHoje', 'filmesDoMes', 'tierlist', 'tierlists', 'tierlistAtiva', 'filtrosSorteio', 'listas', 'nandroll', 'nandrollTodasPlataformas', 'nandrollPlataforma', 'pais', 'meusServicos', 'notaNaCapa', 'premios', 'plataformas', 'plataformaInicial', 'animesDoMes', 'jogosDoMes', 'igdbClientId', 'igdbClientSecret', 'steamKey', 'steamId'];
+    const permitidas = ['tmdbKey', 'omdbKey', 'stremio', 'visualizacao', 'ordenacao', 'watchlists', 'watchlistHoje', 'filmesDoMes', 'tierlist', 'tierlists', 'tierlistAtiva', 'filtrosSorteio', 'listas', 'nandroll', 'nandrollTodasPlataformas', 'nandrollPlataforma', 'streamingMarcados', 'pais', 'meusServicos', 'notaNaCapa', 'premios', 'plataformas', 'plataformaInicial', 'animesDoMes', 'jogosDoMes', 'igdbClientId', 'igdbClientSecret', 'steamKey', 'steamId'];
     for (const k of permitidas) if (k in mudancas) config[k] = mudancas[k];
     if ('nandroll' in mudancas) { config.nandroll = Boolean(mudancas.nandroll); if (config.nandroll) atualizarSeriesEmExibicao(); }
     gravarConfig();
@@ -628,6 +628,12 @@ window.api = {
     return atualizarFilme(id, comEpisodiosDoDia(f, comDia(f, alternarEpisodio(f, Number(temporada), n), dia), dia));
   },
   importarAnilist: (nome) => chamar(() => importarAnilist(nome)),
+  // Importar da Crunchyroll abre o site numa janela: só no PC.
+  lerStreaming: soNoPc,
+  desconectarStreaming: soNoPc,
+  procurarAnime: (termo) => chamar(() => anilist.pesquisar(termo)),
+  importarDoStreaming: soNoPc,
+  aoProgressoStreaming: () => {},
   statusSerie: async (id, status, dia) => {
     const f = filmes.find((x) => x.id === id);
     if (!ehSerie(f)) return null;

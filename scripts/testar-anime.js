@@ -542,3 +542,74 @@ test('temporadas: a primeira temporada em ONA entra na série (Witch Hat Atelier
   assert.deepStrictEqual((await anilist.temporadas(1)).map((t) => t.anilistId), [1, 2]);
   assert.deepStrictEqual((await anilist.temporadas(2)).map((t) => t.anilistId), [1, 2]);
 });
+
+// ---- Importar da Crunchyroll (leitura das respostas do site) ----
+const cr = require('../lib/streaming/crunchyroll');
+
+test('crunchyroll: a watchlist (próximo episódio de cada série) vira as séries, com favoritos', () => {
+  const resposta = { total: 3, data: [
+    { panel: { id: 'E1', type: 'episode', title: 'Ep 5', episode_metadata: { series_id: 'GRDV0019R', series_title: 'Jujutsu Kaisen' } }, is_favorite: true, fully_watched: false },
+    { panel: { id: 'G4PH0WXVJ', type: 'series', title: 'SPY x FAMILY' }, is_favorite: false },
+    { panel: { id: 'E2', type: 'episode', title: 'Ep 6', episode_metadata: { series_id: 'GRDV0019R', series_title: 'Jujutsu Kaisen' } } },
+    { panel: { id: 'M1', type: 'movie', title: 'Suzume', movie_metadata: { movie_listing_id: 'GY8VEQ95Y', movie_listing_title: 'Suzume' } } },
+  ] };
+  assert.deepStrictEqual(cr.titulos(resposta), [
+    { id: 'GRDV0019R', titulo: 'Jujutsu Kaisen', filme: false, favorito: true },
+    { id: 'G4PH0WXVJ', titulo: 'SPY x FAMILY', filme: false, favorito: false },
+    { id: 'GY8VEQ95Y', titulo: 'Suzume', filme: true, favorito: false },
+  ]);
+});
+test('crunchyroll: Crunchylists e os itens delas, mesmo com o formato mudado', () => {
+  assert.deepStrictEqual(cr.crunchylists({ data: [{ list_id: 'abc', title: 'Ver com a namorada', total: 2 }, { list_id: '', title: 'x' }] }), [{ id: 'abc', nome: 'Ver com a namorada' }]);
+  // os itens podem vir em data[].panel ou mais fundo: a leitura procura em qualquer lugar
+  const itens = { data: [{ list_id: 'abc', id: 'x1', panel: { id: 'S1', type: 'series', title: 'Frieren' } }], meta: { outra: { coisa: [{ type: 'movie_listing', id: 'F1', title: 'Your Name.' }] } } };
+  assert.deepStrictEqual(cr.titulos(itens).map((x) => [x.titulo, x.filme]), [['Frieren', false], ['Your Name.', true]]);
+  assert.deepStrictEqual(cr.titulos(null), []);
+  assert.strictEqual(cr.idDaConta({ account_id: 'u-1' }), 'u-1');
+  assert.ok(cr.consultas.watchlist('u 1').includes('/discover/u%201/watchlist') && cr.consultas.watchlist('x').includes('locale=en-US'));
+});
+
+// ---- Importar dos serviços de streaming: do título ao anime ----
+const idt = require('../lib/streaming/identificar');
+const resAnilist = (id, titulo, ano, filme, nomes) => ({ anilistId: id, titulo, ano, filme, formato: filme ? 'MOVIE' : 'TV', nomes });
+test('streaming: o anime certo é o que tem o mesmo nome (do mesmo tipo e da mesma época)', () => {
+  const r = [resAnilist(2, 'Attack on Titan Final Season', '2021', false, ['Shingeki no Kyojin: The Final Season']), resAnilist(1, 'Attack on Titan', '2013', false, ['Attack on Titan', 'Shingeki no Kyojin', '進撃の巨人'])];
+  assert.strictEqual(idt.escolherAnime(r, { nomes: ['進撃の巨人'], filme: false, ano: '2013' }).anilistId, 1);
+  assert.strictEqual(idt.escolherAnime(r, { nomes: ['Breaking Bad'] }), null, 'sem o TMDB confirmar, nome diferente não serve');
+  assert.strictEqual(idt.escolherAnime(r, { nomes: ['Outro Nome'], filme: false, ano: '2021', confirmado: true }).anilistId, 2, 'com o TMDB confirmando, serve o mais relevante da mesma época');
+});
+test('streaming: o que o TMDB diz que não é anime nem vai para a AniList', async () => {
+  const pedidos = [];
+  const anilistFalsa = { pesquisar: async (t, o) => { pedidos.push([t, o]); return t === '進撃の巨人' ? [resAnilist(1, 'Attack on Titan', '2013', false, ['進撃の巨人'])] : []; } };
+  const tmdbFalso = { animeJapones: async (_k, t) => (t === 'Breaking Bad' ? { anime: false, filme: false, original: 'Breaking Bad', ano: '2008' } : { anime: true, filme: false, original: '進撃の巨人', ano: '2013' }) };
+  const itens = [{ titulo: 'Breaking Bad', filme: null }, { titulo: 'Ataque dos Titãs', filme: null }, { titulo: 'Ataque dos Titãs', filme: null }];
+  const progresso = [];
+  const r = await idt.identificarTodos(itens, { anilist: anilistFalsa, tmdb: tmdbFalso, chaveTmdb: 'k' }, (f, t) => progresso.push(`${f}/${t}`));
+  assert.deepStrictEqual(r.map((x) => [x.naoAnime, x.anime && x.anime.anilistId]), [[true, null], [false, 1], [false, 1]]);
+  assert.deepStrictEqual(pedidos, [['進撃の巨人', { exata: true }]], 'só o anime foi procurado, pelo nome em japonês, uma vez');
+  assert.deepStrictEqual(progresso, ['1/2', '2/2']);
+});
+test('streaming: a Crunchyroll (tudo é anime) procura direto, com as tentativas extras da busca', async () => {
+  const anilistFalsa = { pesquisar: async (t, o) => (o ? [] : [resAnilist(5, 'Frieren', '2023', false)]) };
+  const r = await idt.identificarTodos([{ titulo: 'Frieren', filme: false, tudoAnime: true }], { anilist: anilistFalsa, tmdb: null });
+  assert.strictEqual(r[0].anime.anilistId, 5);
+});
+test('streaming: os serviços têm o que a janela precisa', () => {
+  const { SERVICOS, scriptLer, SCRIPT_BOTAO } = require('../lib/streaming/servicos');
+  for (const s of SERVICOS) {
+    assert.ok(s.ID && s.NOME && s.LISTA && /^https:\/\//.test(s.URL), s.ID);
+    assert.doesNotThrow(() => new Function(`return ${scriptLer(s)}`), s.ID);
+  }
+  assert.doesNotThrow(() => new Function(`return ${SCRIPT_BOTAO}`));
+});
+test('streaming: animação de fora do Japão entra se a AniList tiver, da mesma época (Scott Pilgrim sim; Devil May Cry de 2025 não vira o de 2007)', async () => {
+  const anilistFalsa = { pesquisar: async (t) => ({
+    'Scott Pilgrim Takes Off': [resAnilist(7, 'Scott Pilgrim Takes Off', '2023', false, ['Scott Pilgrim Takes Off'])],
+    'Devil May Cry': [resAnilist(8, 'Devil May Cry', '2007', false, ['Devil May Cry', 'デビル メイ クライ'])],
+  }[t] || []) };
+  const tmdbFalso = { animeJapones: async (_k, t) => (t === 'Devil May Cry'
+    ? { anime: false, animacao: true, filme: false, original: 'Devil May Cry', ano: '2025' }
+    : { anime: false, animacao: true, filme: false, original: 'Scott Pilgrim Takes Off', ano: '2023' }) };
+  const r = await idt.identificarTodos([{ titulo: 'Scott Pilgrim: A Série', filme: null }, { titulo: 'Devil May Cry', filme: null }], { anilist: anilistFalsa, tmdb: tmdbFalso, chaveTmdb: 'k' });
+  assert.deepStrictEqual(r.map((x) => [x.anime && x.anime.anilistId, x.naoAnime]), [[7, false], [null, false]], 'o que não está na AniList fica para a busca à mão, não como "não é anime"');
+});

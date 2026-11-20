@@ -342,6 +342,186 @@ async function importarAnilist(nome) {
   return { ...r, lista: filmes };
 }
 
+// ---------- nandchan: importar listas de serviços de streaming ----------
+//
+// Opcional e só pelas Configurações. Cada serviço abre o site numa janela
+// própria, com uma sessão só dela (fica guardada: na próxima vez não pede login
+// de novo). A pessoa entra com a conta dela; o app nunca vê a senha.
+// - Crunchyroll (`LER: 'api'`): com a sessão aberta, o app faz as mesmas
+//   consultas que o site faz e lê a Watchlist e as Crunchylists sozinho.
+// - Os outros (`LER: 'pagina'`): a pessoa abre a lista dela e clica em "Ler
+//   esta lista" (um botão que o app põe na página); o app lê os títulos dali.
+// ("Plataformas", no resto do app, são as seções nandflix, nandchan… Aqui são
+// os serviços de streaming, por isso o nome é outro.)
+const crunchyroll = require('./lib/streaming/crunchyroll');
+const servicosStreaming = require('./lib/streaming/servicos');
+const { identificarTodos } = require('./lib/streaming/identificar');
+const STREAMING = {
+  crunchyroll: { ...crunchyroll, LER: 'api' },
+  ...Object.fromEntries(servicosStreaming.SERVICOS.map((s) => [s.ID, { ...s, LER: 'pagina' }])),
+};
+const sessaoStreaming = (p) => session.fromPartition(`persist:streaming-${p.ID}`);
+let janelaStreaming = null;
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Abre o site, espera a pessoa entrar e devolve as listas:
+// { servico, listas: [{ nome, origem, itens: [{ titulo, filme, favorito }] }] }.
+async function lerStreaming(id) {
+  const p = STREAMING[id];
+  if (!p) throw new Error('Serviço desconhecido.');
+  if (janelaStreaming && !janelaStreaming.isDestroyed()) { janelaStreaming.focus(); throw Object.assign(new Error('Já há uma janela de serviço de streaming aberta.'), { tipo: 'aberta' }); }
+  const ses = sessaoStreaming(p);
+  // O navegador comum: alguns sites recusam o login vindo de um app (Electron).
+  ses.setUserAgent(ses.getUserAgent().replace(/\s*(Electron|nandflix)\/\S+/gi, ''));
+  const jan = new BrowserWindow({
+    width: 1100, height: 800, title: p.LER === 'api' ? `Entrar na ${p.NOME}` : `${p.NOME}: entre na conta, abra a sua lista e clique em “Ler esta lista”`,
+    autoHideMenuBar: true, backgroundColor: '#000000',
+    webPreferences: { session: ses, contextIsolation: true, sandbox: true, nodeIntegration: false },
+  });
+  jan.setMenu(null);
+  janelaStreaming = jan;
+  // Links que abririam outra janela (ajuda, termos) vão para o navegador.
+  jan.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  // O título da janela é o do app (o site trocaria pelo dele).
+  jan.on('page-title-updated', (e) => e.preventDefault());
+
+  let fechada = false;
+  const fechou = new Promise((_ok, falhou) => jan.on('closed', () => {
+    fechada = true;
+    falhou(Object.assign(new Error('Janela fechada antes de terminar.'), { tipo: 'cancelado' }));
+  }));
+  fechou.catch(() => {});
+  const rodar = async (codigo) => {
+    if (fechada || jan.isDestroyed()) return null;
+    try { return await jan.webContents.executeJavaScript(codigo, true); } catch { return null; }
+  };
+
+  // Crunchyroll: a sessão do site é o cabeçalho de autorização que a própria
+  // página manda nos pedidos dela (lido de passagem, sem mudar nada no pedido).
+  let token = '';
+  if (p.LER === 'api') {
+    ses.webRequest.onBeforeSendHeaders({ urls: [`${p.SITE}/*`] }, (d, cb) => {
+      const h = d.requestHeaders || {};
+      const a = h.Authorization || h.authorization;
+      if (a && /^Bearer\s/i.test(a)) token = a;
+      cb({ requestHeaders: h });
+    });
+  }
+  const pedir = (url) => rodar(`fetch(${JSON.stringify(url)}, { headers: { Authorization: ${JSON.stringify(token)} }, credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)`);
+
+  const lerPelaApi = async () => {
+    // Espera a pessoa entrar (até 10 minutos): a conta só responde com login.
+    let conta = '';
+    for (let i = 0; i < 300 && !conta; i++) {
+      await esperar(2000);
+      if (fechada) return null;
+      if (!token) continue;
+      conta = p.idDaConta(await pedir(p.consultas.conta()));
+    }
+    if (!conta) throw Object.assign(new Error('Não deu para entrar na conta a tempo.'), { tipo: 'tempo' });
+    jan.setTitle(`${p.NOME}: lendo as suas listas…`);
+    const listas = [];
+    const watch = p.titulos(await pedir(p.consultas.watchlist(conta)));
+    if (watch.length) listas.push({ nome: 'Watchlist', origem: 'watchlist', itens: watch });
+    for (const l of p.crunchylists(await pedir(p.consultas.crunchylists(conta)))) {
+      const itens = p.titulos(await pedir(p.consultas.crunchylist(conta, l.id)));
+      if (itens.length) listas.push({ nome: l.nome, origem: 'crunchylist', itens });
+    }
+    return listas;
+  };
+
+  const lerPelaPagina = async () => {
+    // Até 15 minutos para entrar, achar a lista e clicar no botão.
+    for (let i = 0; i < 900; i++) {
+      await esperar(1000);
+      if (fechada) return null;
+      if (!(await rodar(servicosStreaming.SCRIPT_BOTAO))) continue;
+      jan.setTitle(`${p.NOME}: lendo a sua lista…`);
+      const itens = (await rodar(servicosStreaming.scriptLer(p))) || [];
+      if (itens.length) return [{ nome: p.LISTA, origem: 'pagina', itens: itens.map((x) => ({ titulo: String(x.titulo), filme: x.filme === true || x.filme === false ? x.filme : null, favorito: false })) }];
+      await rodar(servicosStreaming.scriptMensagem('Não achei títulos aqui. Abra a sua lista e clique de novo.'));
+      jan.setTitle(`${p.NOME}: abra a sua lista e clique em “Ler esta lista”`);
+    }
+    throw Object.assign(new Error('O tempo para ler a lista acabou.'), { tipo: 'tempo' });
+  };
+
+  jan.loadURL(p.LER === 'api' ? `${p.SITE}/watchlist` : p.URL).catch(() => { /* a página pode redirecionar para o login: tudo bem */ });
+  try {
+    const listas = await Promise.race([p.LER === 'api' ? lerPelaApi() : lerPelaPagina(), fechou]);
+    return { servico: p.NOME, listas: listas || [] };
+  } finally {
+    janelaStreaming = null;
+    if (p.LER === 'api') ses.webRequest.onBeforeSendHeaders(null);
+    if (!fechada && !jan.isDestroyed()) jan.close();
+  }
+}
+
+// Lê um serviço e procura cada título na AniList (o que não é anime fica de
+// fora, marcado `naoAnime`). Cada item volta com `anime` (ou null).
+ipcMain.handle('streaming:ler', (_e, id) => chamar(async () => {
+  const r = await lerStreaming(id);
+  const p = STREAMING[id];
+  const todos = r.listas.flatMap((l) => l.itens.map((x) => ({ ...x, servico: id, tudoAnime: p.LER === 'api' })));
+  const achados = await identificarTodos(todos, { anilist, tmdb, chaveTmdb: config.tmdbKey || '' },
+    (feitos, total) => avisar('streaming:progresso', { servico: p.NOME, feitos, total }));
+  let k = 0;
+  return { ...r, listas: r.listas.map((l) => ({ ...l, itens: l.itens.map(() => { const { servico: _s, tudoAnime: _t, ...x } = achados[k++]; return x; }) })) };
+}));
+ipcMain.handle('streaming:desconectar', async (_e, id) => {
+  const p = STREAMING[id];
+  if (!p) return false;
+  await sessaoStreaming(p).clearStorageData();
+  return true;
+});
+ipcMain.handle('streaming:procurar', (_e, termo) => chamar(() => anilist.pesquisar(termo)));
+
+// Põe na lista do app os animes escolhidos na conferência. Os que já estão no
+// app não se repetem: só ganham a lista (e o favorito). `itens`: [{ anilistId,
+// titulo, ano, poster, filme, favorito }]; `lista`: o nome da lista do app.
+function importarDoStreaming(itens, lista) {
+  const nome = String(lista || '').trim().slice(0, 60);
+  let ordem = filmes.reduce((m, f) => Math.max(m, f.ordem || 0), 0);
+  const agora = new Date().toISOString();
+  const r = { novos: 0, jaEstavam: 0 };
+  const novos = [];
+  for (const d of itens || []) {
+    const anilistId = Number(d.anilistId);
+    if (!anilistId) continue;
+    const serie = !d.filme;
+    const dados = { titulo: String(d.titulo || '').trim(), ano: String(d.ano || '').trim(), anilistId, tipo: serie ? 'serie' : undefined };
+    const ja = acharRepetido(filmes, dados);
+    if (ja) {
+      const mudancas = {};
+      if (nome && !(ja.listas || []).includes(nome)) mudancas.listas = [...(ja.listas || []), nome];
+      if (d.favorito && !ja.favorito) mudancas.favorito = true;
+      if (Object.keys(mudancas).length) atualizarFilme(ja.id, mudancas);
+      r.jaEstavam++;
+      continue;
+    }
+    const f = novoFilme({
+      ordem: ++ordem, titulo: dados.titulo, ano: dados.ano, poster: d.poster || '', anime: true, anilistId,
+      listas: nome ? [nome] : [], favorito: Boolean(d.favorito),
+      ...(serie ? { tipo: 'serie', episodios: 0, episodiosVistos: 0, status: 'planejo', tmdbEm: agora } : {}),
+    });
+    filmes.push(f);
+    novos.push(f);
+    r.novos++;
+  }
+  if (nome && !(config.listas || []).includes(nome)) { config.listas = [...(config.listas || []), nome]; gravarConfig(); }
+  gravarAgora();
+  // Temporadas, capas e o resto chegam aos poucos (a AniList tem limite por minuto).
+  (async () => {
+    for (const f of novos) {
+      try { await processarAnilist(f, null, { novo: true }); } catch { /* fica para a próxima vez que o app abrir */ }
+      avisar('filme:mudou', f);
+    }
+    gravarAgora();
+    buscarCapasQueFaltam();
+  })();
+  return { ...r, lista: filmes, config: configPublica() };
+}
+ipcMain.handle('streaming:importar', (_e, itens, lista) => importarDoStreaming(itens, lista));
+
 let buscaEmAndamento = null;
 
 // Atualiza pelo TMDB os filmes que ainda não passaram por ele (4 ao mesmo tempo)
@@ -856,7 +1036,7 @@ ipcMain.handle('config:salvar', (_e, mudancas) => {
   // (watchlistHoje é o formato antigo, de um dia só; o app o apaga ao salvar o novo).
   // filmesDoMes: { 'AAAA-MM': id }, o filme favorito de cada mês (só aparece no calendário).
   // tierlist: [{ id, nome, cor, filmes: [ids] }], as tiers de cima para baixo.
-  const permitidas = ['tmdbKey', 'omdbKey', 'stremio', 'visualizacao', 'ordenacao', 'watchlists', 'watchlistHoje', 'filmesDoMes', 'tierlist', 'tierlists', 'tierlistAtiva', 'filtrosSorteio', 'listas', 'nandroll', 'nandrollTodasPlataformas', 'nandrollPlataforma', 'pais', 'meusServicos', 'notaNaCapa', 'premios', 'plataformas', 'plataformaInicial', 'animesDoMes', 'jogosDoMes', 'igdbClientId', 'igdbClientSecret', 'steamKey', 'steamId'];
+  const permitidas = ['tmdbKey', 'omdbKey', 'stremio', 'visualizacao', 'ordenacao', 'watchlists', 'watchlistHoje', 'filmesDoMes', 'tierlist', 'tierlists', 'tierlistAtiva', 'filtrosSorteio', 'listas', 'nandroll', 'nandrollTodasPlataformas', 'nandrollPlataforma', 'streamingMarcados', 'pais', 'meusServicos', 'notaNaCapa', 'premios', 'plataformas', 'plataformaInicial', 'animesDoMes', 'jogosDoMes', 'igdbClientId', 'igdbClientSecret', 'steamKey', 'steamId'];
   for (const k of permitidas) if (k in mudancas) config[k] = mudancas[k];
   if ('nandroll' in mudancas) { config.nandroll = Boolean(mudancas.nandroll); if (config.nandroll) atualizarSeriesEmExibicao(); }
   if ('omdbKey' in mudancas) config.limiteAtingidoEm = null;
