@@ -1,0 +1,102 @@
+# Monta o APK de teste do nandchan a cada push na main (ou à mão, em Actions)
+# e o publica em Releases ("nandchan: APK de teste"), para baixar direto no
+# celular.
+#
+# O APK sai com outro identificador e outro nome, para ficar instalado ao lado
+# do NANDFlix original (o mesmo identificador do antigo NANDRoll: instala por
+# cima dele, sem perder o que está guardado). As trocas são feitas só aqui, na
+# hora de montar: os arquivos do projeto continuam iguais aos do NANDFlix.
+name: APK do nandchan
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-nandchan
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Testes
+        run: |
+          for f in scripts/testar-*.js; do node "$f"; done
+
+      - name: Dependências
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          cd mobile
+          npm ci --no-audit --no-fund
+
+      - name: Identificador e nome do APK de teste
+        run: |
+          sed -i 's/applicationId "app.nandflix.celular"/applicationId "app.nandroll.celular"/' mobile/android/app/build.gradle
+          sed -i 's|<string name="app_name">NANDFlix</string>|<string name="app_name">nandchan teste</string>|; s|<string name="title_activity_main">NANDFlix</string>|<string name="title_activity_main">nandchan teste</string>|' mobile/android/app/src/main/res/values/strings.xml
+          grep -q 'applicationId "app.nandroll.celular"' mobile/android/app/build.gradle
+          grep -q '<string name="app_name">nandchan teste</string>' mobile/android/app/src/main/res/values/strings.xml
+
+      # O app baixa sozinho a interface que o NANDFlix original publica na
+      # nuvem. No APK de teste isso trocaria o que está sendo testado pela
+      # versão do NANDFlix: aqui fica desligado (o APK de teste só muda com
+      # outro APK de teste).
+      - name: Sem atualização pela nuvem
+        run: |
+          sed -i 's|^const URL_VERSAO = nuvemConfig ?|const URL_VERSAO = false \&\& nuvemConfig ?|' mobile/api/index.js
+          grep -q '^const URL_VERSAO = false && nuvemConfig ?' mobile/api/index.js
+
+      # A mesma assinatura em todo APK: sem isso o Android recusa a atualização
+      # por cima do anterior, e desinstalar apagaria a lista guardada no aparelho.
+      - name: Assinatura de teste fixa
+        run: |
+          mkdir -p ~/.android
+          cp mobile/android/nandroll-debug.keystore ~/.android/debug.keystore
+
+      - name: Interface do celular
+        working-directory: mobile
+        run: |
+          node montar.js
+          npx cap sync android
+
+      - name: APK
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Nome do arquivo
+        run: cp mobile/android/app/build/outputs/apk/debug/app-debug.apk nandchan-teste.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nandchan-teste
+          path: nandchan-teste.apk
+
+      - name: Publicar em Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTAS="APK de teste do nandchan, montado sozinho a partir do commit ${GITHUB_SHA::7}. Baixe o .apk no celular e abra para instalar."
+          if gh release view nandchan-teste >/dev/null 2>&1; then
+            gh release upload nandchan-teste nandchan-teste.apk --clobber
+            gh release edit nandchan-teste --notes "$NOTAS" --target "$GITHUB_SHA"
+          else
+            gh release create nandchan-teste nandchan-teste.apk --prerelease --title "nandchan: APK de teste" --notes "$NOTAS" --target "$GITHUB_SHA"
+          fi
