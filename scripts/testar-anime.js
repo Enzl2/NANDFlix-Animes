@@ -613,3 +613,45 @@ test('streaming: animação de fora do Japão entra se a AniList tiver, da mesma
   const r = await idt.identificarTodos([{ titulo: 'Scott Pilgrim: A Série', filme: null }, { titulo: 'Devil May Cry', filme: null }], { anilist: anilistFalsa, tmdb: tmdbFalso, chaveTmdb: 'k' });
   assert.deepStrictEqual(r.map((x) => [x.anime && x.anime.anilistId, x.naoAnime]), [[7, false], [null, false]], 'o que não está na AniList fica para a busca à mão, não como "não é anime"');
 });
+
+// ---- Importar da Crunchyroll no celular (o navegador dentro do app) ----
+const { lerCrunchyrollNoCelular } = require('../lib/streaming/celular');
+function navegadorFalso() {
+  const ouvintes = {};
+  const n = {
+    abertos: [], scripts: 0, fechado: 0, removidos: 0,
+    addListener: async (ev, fn) => { ouvintes[ev] = fn; return { remove: async () => { n.removidos++; delete ouvintes[ev]; } }; },
+    openWebView: async (o) => { n.abertos.push(o); },
+    executeScript: async ({ code }) => { assert.ok(code.includes('nandchan-ler')); n.scripts++; },
+    close: async () => { n.fechado++; if (ouvintes.closeEvent) ouvintes.closeEvent({}); },
+    emitir: (ev, dados) => ouvintes[ev] && ouvintes[ev](dados),
+  };
+  return n;
+}
+const esperaTeste = (ms) => new Promise((r) => setTimeout(r, ms));
+test('celular: abre a Crunchyroll, põe o script a cada página e devolve as listas que a página manda', async () => {
+  const n = navegadorFalso();
+  const lendo = lerCrunchyrollNoCelular(n);
+  await esperaTeste(10);
+  assert.strictEqual(n.abertos[0].url, 'https://www.crunchyroll.com/watchlist');
+  assert.strictEqual(n.abertos[0].preventDeeplink, true, 'os links não abrem o app da Crunchyroll');
+  n.emitir('browserPageLoaded', {}); n.emitir('browserPageLoaded', {});
+  await esperaTeste(10);
+  assert.strictEqual(n.scripts, 2);
+  n.emitir('messageFromWebview', { detail: { tipo: 'outra coisa' } });
+  n.emitir('messageFromWebview', { detail: { tipo: 'listas', listas: [{ nome: 'Watchlist', itens: [{ titulo: 'Frieren' }] }] } });
+  assert.deepStrictEqual(await lendo, [{ nome: 'Watchlist', itens: [{ titulo: 'Frieren' }] }]);
+  await esperaTeste(10);
+  assert.strictEqual(n.fechado, 1, 'fecha o navegador ao terminar (e isso não vira cancelamento)');
+  assert.strictEqual(n.removidos, 3, 'tira os ouvintes');
+});
+test('celular: fechar o navegador antes cancela; e o tempo tem limite', async () => {
+  const n = navegadorFalso();
+  const lendo = lerCrunchyrollNoCelular(n);
+  await esperaTeste(10);
+  n.emitir('closeEvent', {});
+  await assert.rejects(lendo, (e) => e.tipo === 'cancelado');
+  await assert.rejects(lerCrunchyrollNoCelular(navegadorFalso(), { limite: 20 }), (e) => e.tipo === 'tempo');
+  const quebrado = { ...navegadorFalso(), openWebView: async () => { throw new Error('sem plugin'); } };
+  await assert.rejects(lerCrunchyrollNoCelular(quebrado), /Não deu para abrir a Crunchyroll: sem plugin/);
+});

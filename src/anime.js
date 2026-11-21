@@ -56,15 +56,17 @@ function nandrollConfigHTML() {
           <button class="btn" id="cfg-anilist-importar">${icone('Download')} Importar lista</button>
         </div>
         <p>Traz os animes da sua lista pública da AniList, com episódios vistos, status e notas. O que já está aqui não é duplicado.</p>
-        ${api.plataforma === 'android' ? '' : `
+        ${!streamingDisponiveis().length ? '' : `
         <div class="streaming-importar">
           <p class="streaming-titulo">Importar dos serviços de streaming</p>
-          <div class="streaming-opcoes">
-            ${STREAMING_IMPORTAR.map((s) => `<label><input type="checkbox" data-streaming-marcar="${s.id}"${streamingMarcados().includes(s.id) ? ' checked' : ''}> ${esc(s.nome)}</label>`).join('')}
-          </div>
+          ${streamingDisponiveis().length < 2 ? '' : `<div class="streaming-opcoes">
+            ${streamingDisponiveis().map((s) => `<label><input type="checkbox" data-streaming-marcar="${s.id}"${streamingMarcados().includes(s.id) ? ' checked' : ''}> ${esc(s.nome)}</label>`).join('')}
+          </div>`}
           <span class="streaming-linha"><button class="btn" id="cfg-streaming-importar">${icone('Download')} <span></span></button><button class="link-chave" id="cfg-streaming-sair" title="Apaga do app as sessões dos serviços marcados (na próxima vez, pede login de novo)">desconectar</button></span>
         </div>
-        <p>Abre o site de cada serviço marcado numa janela do app, um depois do outro: você entra com a sua conta (o app não vê a senha). A Crunchyroll é lida sozinha; nos outros, abra a sua lista e clique em “Ler esta lista”. Só os animes entram (o que não é anime fica de fora), e antes você confere quais trazer e em que lista eles entram. As sessões ficam guardadas para a próxima vez.</p>`}
+        <p>${api.plataforma === 'android'
+    ? 'Abre a Crunchyroll dentro do app: você entra com a sua conta (o app não vê a senha) e toca em “Ler minhas listas”. Antes de importar, você confere quais animes trazer e em que lista eles entram. A sessão fica guardada para a próxima vez. Os outros serviços só no app do computador.'
+    : 'Abre o site de cada serviço marcado numa janela do app, um depois do outro: você entra com a sua conta (o app não vê a senha). A Crunchyroll é lida sozinha; nos outros, abra a sua lista e clique em “Ler esta lista”. Só os animes entram (o que não é anime fica de fora), e antes você confere quais trazer e em que lista eles entram. As sessões ficam guardadas para a próxima vez.'}</p>`}
       </div>`;
 }
 
@@ -103,7 +105,11 @@ function ligarNandrollConfig(raiz) {
   // Importar dos serviços de streaming: os marcados ficam lembrados.
   const botaoStreaming = $('#cfg-streaming-importar', raiz);
   if (botaoStreaming) {
-    const marcados = () => $$('[data-streaming-marcar]', raiz).filter((c) => c.checked).map((c) => c.dataset.streamingMarcar);
+    // Com um serviço só (no celular, a Crunchyroll), não há caixas: é ele.
+    const marcados = () => {
+      const caixas = $$('[data-streaming-marcar]', raiz);
+      return caixas.length ? caixas.filter((c) => c.checked).map((c) => c.dataset.streamingMarcar) : streamingDisponiveis().map((s) => s.id);
+    };
     const rotular = () => {
       const ids = marcados();
       $('span', botaoStreaming).textContent = rotuloImportarStreaming(ids);
@@ -1016,9 +1022,14 @@ const STREAMING_IMPORTAR = [
   { id: 'animeonegai', nome: 'Anime Onegai', de: 'do' },
 ];
 const servicoStreaming = (id) => STREAMING_IMPORTAR.find((x) => x.id === id);
+// No PC, todos; no celular, só os que o app de lá consegue abrir (a Crunchyroll,
+// e só com o APK que traz o navegador embutido).
+const streamingDisponiveis = () => (api.plataforma === 'android'
+  ? STREAMING_IMPORTAR.filter((s) => (Array.isArray(api.streamingNoCelular) ? api.streamingNoCelular : []).includes(s.id))
+  : STREAMING_IMPORTAR);
 const streamingMarcados = () => {
   const salvos = estado.config && Array.isArray(estado.config.streamingMarcados) ? estado.config.streamingMarcados : ['crunchyroll'];
-  return salvos.filter((id) => servicoStreaming(id));
+  return salvos.filter((id) => streamingDisponiveis().some((s) => s.id === id));
 };
 function rotuloImportarStreaming(ids) {
   if (!ids.length) return 'Marque um serviço';
@@ -1043,7 +1054,9 @@ async function importarDosStreamings(ids) {
   for (const id of ids) {
     const s = servicoStreaming(id);
     mostrarAvisoStreaming(id === 'crunchyroll'
-      ? `Entre na sua conta na janela da Crunchyroll. Depois, o app lê as suas listas sozinho.`
+      ? (api.plataforma === 'android'
+        ? 'Entre na sua conta da Crunchyroll e toque em “Ler minhas listas”.'
+        : 'Entre na sua conta na janela da Crunchyroll. Depois, o app lê as suas listas sozinho.')
       : `Entre na sua conta na janela ${s.de} ${s.nome}, abra a sua lista e clique em “Ler esta lista”.`);
     const r = await api.lerStreaming(id);
     if (!r.ok) {

@@ -3605,7 +3605,7 @@ html[data-com-verde] .cfg-plat-hub { background: linear-gradient(90deg, rgba(109
 
 /* nandchan: importar da Crunchyroll (Configurações) e a conferência do que veio */
 .streaming-importar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
-.streaming-linha { display: inline-flex; align-items: center; gap: 10px; }
+.streaming-linha { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .conferencia { display: flex; flex-direction: column; gap: 16px; }
 .conf-intro { margin: 0; color: var(--texto-2); font-size: 14px; }
 .conf-lista h3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 14px; font-weight: 600; }

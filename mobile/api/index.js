@@ -31,6 +31,10 @@ import { Acervo, listaPremios } from '../../lib/premios.js';
 import { escolherArquivos } from './letterboxd-zip.mjs';
 import importar from '../../lib/importar.js';
 import stremio from '../../lib/stremio.js';
+import { InAppBrowser } from '@capgo/capacitor-inappbrowser';
+import crunchyroll from '../../lib/streaming/crunchyroll.js';
+import { identificarTodos } from '../../lib/streaming/identificar.js';
+import { lerCrunchyrollNoCelular } from '../../lib/streaming/celular.js';
 // URL e chave do Supabase, de lib/nuvem.config.json (o montar.js põe aqui na hora
 // de montar). Sem esse arquivo (a versão pública do GitHub), o app funciona só
 // com os dados do aparelho: sem conta, sem sincronia e sem atualização sozinha.
@@ -239,6 +243,85 @@ async function importarAnilist(nome) {
     buscarCapasQueFaltam();
   }
   return { ...r, lista: filmes };
+}
+
+// ---------- nandchan: importar da Crunchyroll (como no main.js) ----------
+//
+// No celular só a Crunchyroll: o app abre o site num navegador dentro dele (o
+// plugin InAppBrowser), a pessoa entra com a conta dela e toca em "Ler minhas
+// listas", um botão que o script da página põe lá (lib/streaming/crunchyroll.js,
+// scriptCelular). O script lê as listas com a sessão do próprio site e as manda
+// para cá. Os cookies ficam guardados: na próxima vez não pede login de novo.
+// O plugin é nativo: só existe a partir do APK que o traz. Sem ele (APK antigo
+// atualizado pela nuvem), a opção nem aparece nas Configurações.
+const temNavegadorEmbutido = () => Capacitor.isNativePlatform() && (Capacitor.isPluginAvailable('CapgoInAppBrowser') || Capacitor.isPluginAvailable('InAppBrowser'));
+const STREAMING_NO_CELULAR = ['crunchyroll'];
+let lendoStreaming = false;
+
+async function lerStreamingNoCelular(id) {
+  if (!STREAMING_NO_CELULAR.includes(id)) throw new Error('No celular, só dá para importar da Crunchyroll.');
+  if (!temNavegadorEmbutido()) throw new Error('Instale o APK novo do app para importar da Crunchyroll pelo celular.');
+  if (lendoStreaming) throw Object.assign(new Error('A Crunchyroll já está aberta.'), { tipo: 'aberta' });
+  lendoStreaming = true;
+  try {
+    return await lerCrunchyrollNoCelular(InAppBrowser);
+  } finally {
+    lendoStreaming = false;
+  }
+}
+
+// Lê e procura cada título na AniList, como no main.js ('streaming:ler').
+async function lerStreaming(id) {
+  const listas = await lerStreamingNoCelular(id);
+  const todos = listas.flatMap((l) => l.itens.map((x) => ({ ...x, servico: id, tudoAnime: true })));
+  const achados = await identificarTodos(todos, { anilist, tmdb, chaveTmdb: config.tmdbKey || '' },
+    (feitos, total) => avisar('streaming:progresso', { servico: crunchyroll.NOME, feitos, total }));
+  let k = 0;
+  return { servico: crunchyroll.NOME, listas: listas.map((l) => ({ ...l, itens: l.itens.map(() => { const { servico: _s, tudoAnime: _t, ...x } = achados[k++]; return x; }) })) };
+}
+
+// Põe na lista os animes escolhidos na conferência, como no main.js.
+function importarDoStreaming(itens, lista) {
+  const nome = String(lista || '').trim().slice(0, 60);
+  let ordem = filmes.reduce((m, f) => Math.max(m, f.ordem || 0), 0);
+  const agora = new Date().toISOString();
+  const r = { novos: 0, jaEstavam: 0 };
+  const novos = [];
+  for (const d of itens || []) {
+    const anilistId = Number(d.anilistId);
+    if (!anilistId) continue;
+    const serie = !d.filme;
+    const dados = { titulo: String(d.titulo || '').trim(), ano: String(d.ano || '').trim(), anilistId, tipo: serie ? 'serie' : undefined };
+    const ja = acharRepetido(filmes, dados);
+    if (ja) {
+      const mudancas = {};
+      if (nome && !(ja.listas || []).includes(nome)) mudancas.listas = [...(ja.listas || []), nome];
+      if (d.favorito && !ja.favorito) mudancas.favorito = true;
+      if (Object.keys(mudancas).length) atualizarFilme(ja.id, mudancas);
+      r.jaEstavam++;
+      continue;
+    }
+    const f = novoFilme({
+      ordem: ++ordem, titulo: dados.titulo, ano: dados.ano, poster: d.poster || '', anime: true, anilistId,
+      listas: nome ? [nome] : [], favorito: Boolean(d.favorito),
+      ...(serie ? { tipo: 'serie', episodios: 0, episodiosVistos: 0, status: 'planejo', tmdbEm: agora } : {}),
+    });
+    filmes.push(f);
+    novos.push(f);
+    r.novos++;
+  }
+  if (nome && !(config.listas || []).includes(nome)) { config.listas = [...(config.listas || []), nome]; gravarConfig(); }
+  gravarAgora();
+  // Temporadas, capas e o resto chegam aos poucos (a AniList tem limite por minuto).
+  (async () => {
+    for (const f of novos) {
+      try { await processarAnilist(f, null, { novo: true }); } catch { /* fica para a próxima vez que o app abrir */ }
+      avisar('filme:mudou', f);
+    }
+    gravarAgora();
+    buscarCapasQueFaltam();
+  })();
+  return { ...r, lista: filmes, config: configPublica() };
 }
 
 let buscaEmAndamento = null;
@@ -628,12 +711,18 @@ window.api = {
     return atualizarFilme(id, comEpisodiosDoDia(f, comDia(f, alternarEpisodio(f, Number(temporada), n), dia), dia));
   },
   importarAnilist: (nome) => chamar(() => importarAnilist(nome)),
-  // Importar da Crunchyroll abre o site numa janela: só no PC.
-  lerStreaming: soNoPc,
-  desconectarStreaming: soNoPc,
+  // Importar dos serviços de streaming: no celular, só a Crunchyroll (e só
+  // com o APK que traz o navegador embutido).
+  streamingNoCelular: temNavegadorEmbutido() ? STREAMING_NO_CELULAR : [],
+  lerStreaming: (id) => chamar(() => lerStreaming(id)),
+  desconectarStreaming: async (id) => {
+    if (!STREAMING_NO_CELULAR.includes(id) || !temNavegadorEmbutido()) return false;
+    await InAppBrowser.clearCookies({ url: crunchyroll.SITE }).catch(() => {});
+    return true;
+  },
   procurarAnime: (termo) => chamar(() => anilist.pesquisar(termo)),
-  importarDoStreaming: soNoPc,
-  aoProgressoStreaming: () => {},
+  importarDoStreaming: async (itens, lista) => importarDoStreaming(itens, lista),
+  aoProgressoStreaming: ouvir('streaming:progresso'),
   statusSerie: async (id, status, dia) => {
     const f = filmes.find((x) => x.id === id);
     if (!ehSerie(f)) return null;
