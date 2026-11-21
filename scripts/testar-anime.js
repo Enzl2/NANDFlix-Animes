@@ -622,7 +622,7 @@ function navegadorFalso() {
     abertos: [], scripts: 0, fechado: 0, removidos: 0,
     addListener: async (ev, fn) => { ouvintes[ev] = fn; return { remove: async () => { n.removidos++; delete ouvintes[ev]; } }; },
     openWebView: async (o) => { n.abertos.push(o); },
-    executeScript: async ({ code }) => { assert.ok(code.includes('nandchan-ler')); n.scripts++; },
+    executeScript: async ({ code }) => { assert.ok(code.includes('nandchan-faixa')); n.scripts++; },
     close: async () => { n.fechado++; if (ouvintes.closeEvent) ouvintes.closeEvent({}); },
     emitir: (ev, dados) => ouvintes[ev] && ouvintes[ev](dados),
   };
@@ -654,4 +654,12 @@ test('celular: fechar o navegador antes cancela; e o tempo tem limite', async ()
   await assert.rejects(lerCrunchyrollNoCelular(navegadorFalso(), { limite: 20 }), (e) => e.tipo === 'tempo');
   const quebrado = { ...navegadorFalso(), openWebView: async () => { throw new Error('sem plugin'); } };
   await assert.rejects(lerCrunchyrollNoCelular(quebrado), /Não deu para abrir a Crunchyroll: sem plugin/);
+});
+test('celular: o script da página leva o código de leitura inteiro (a montagem minificada do celular não o quebra)', () => {
+  const c = require('../lib/streaming/crunchyroll');
+  const s = c.scriptCelular();
+  for (const f of ['function lerPainel(', 'function titulos(', 'function crunchylists(', 'function idDaConta(']) assert.ok(s.includes(f), f);
+  // Como sai da montagem: o código das funções não pode depender dos nomes delas no app.
+  assert.doesNotThrow(() => new Function(`return ${s}`));
+  assert.deepStrictEqual(c.titulos({ data: [{ panel: { type: 'series', id: '1', title: 'Overlord' }, is_favorite: true }] }), [{ id: '1', titulo: 'Overlord', filme: false, favorito: true }]);
 });

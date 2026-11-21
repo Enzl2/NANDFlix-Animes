@@ -248,10 +248,9 @@ async function importarAnilist(nome) {
 // ---------- nandchan: importar da Crunchyroll (como no main.js) ----------
 //
 // No celular só a Crunchyroll: o app abre o site num navegador dentro dele (o
-// plugin InAppBrowser), a pessoa entra com a conta dela e toca em "Ler minhas
-// listas", um botão que o script da página põe lá (lib/streaming/crunchyroll.js,
-// scriptCelular). O script lê as listas com a sessão do próprio site e as manda
-// para cá. Os cookies ficam guardados: na próxima vez não pede login de novo.
+// plugin InAppBrowser) e a pessoa entra com a conta dela. Um script na página
+// (lib/streaming/crunchyroll.js, scriptCelular) lê as listas sozinho com a
+// sessão do próprio site e as manda para cá. Os cookies ficam guardados: na próxima vez não pede login de novo.
 // O plugin é nativo: só existe a partir do APK que o traz. Sem ele (APK antigo
 // atualizado pela nuvem), a opção nem aparece nas Configurações.
 const temNavegadorEmbutido = () => Capacitor.isNativePlatform() && (Capacitor.isPluginAvailable('CapgoInAppBrowser') || Capacitor.isPluginAvailable('InAppBrowser'));

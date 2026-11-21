@@ -65,7 +65,7 @@ function nandrollConfigHTML() {
           <span class="streaming-linha"><button class="btn" id="cfg-streaming-importar">${icone('Download')} <span></span></button><button class="link-chave" id="cfg-streaming-sair" title="Apaga do app as sessões dos serviços marcados (na próxima vez, pede login de novo)">desconectar</button></span>
         </div>
         <p>${api.plataforma === 'android'
-    ? 'Abre a Crunchyroll dentro do app: você entra com a sua conta (o app não vê a senha) e toca em “Ler minhas listas”. Antes de importar, você confere quais animes trazer e em que lista eles entram. A sessão fica guardada para a próxima vez. Os outros serviços só no app do computador.'
+    ? 'Abre a Crunchyroll dentro do app: você entra com a sua conta (o app não vê a senha) e o app lê a sua Fila e as suas Crunchylists sozinho. Antes de importar, você confere quais animes trazer e em que lista eles entram. A sessão fica guardada para a próxima vez. Os outros serviços só no app do computador.'
     : 'Abre o site de cada serviço marcado numa janela do app, um depois do outro: você entra com a sua conta (o app não vê a senha). A Crunchyroll é lida sozinha; nos outros, abra a sua lista e clique em “Ler esta lista”. Só os animes entram (o que não é anime fica de fora), e antes você confere quais trazer e em que lista eles entram. As sessões ficam guardadas para a próxima vez.'}</p>`}
       </div>`;
 }
@@ -1055,7 +1055,7 @@ async function importarDosStreamings(ids) {
     const s = servicoStreaming(id);
     mostrarAvisoStreaming(id === 'crunchyroll'
       ? (api.plataforma === 'android'
-        ? 'Entre na sua conta da Crunchyroll e toque em “Ler minhas listas”.'
+        ? 'Entre na sua conta da Crunchyroll. Depois, o app lê as suas listas sozinho.'
         : 'Entre na sua conta na janela da Crunchyroll. Depois, o app lê as suas listas sozinho.')
       : `Entre na sua conta na janela ${s.de} ${s.nome}, abra a sua lista e clique em “Ler esta lista”.`);
     const r = await api.lerStreaming(id);
